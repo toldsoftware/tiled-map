@@ -8,8 +8,10 @@ export declare class CanvasRenderer extends Renderer {
     isInputDown: boolean;
     inputDownStart: number;
     lastViewPort: ViewPort;
+    xCanvasLast: number;
+    yCanvasLast: number;
     constructor(host: HTMLElement);
-    getInput(e: any, type: UserInputType): false;
+    getInput(e: Event, type: UserInputType): false;
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
     drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 }

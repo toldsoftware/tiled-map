@@ -14,6 +14,10 @@ export class CanvasRenderer extends Renderer {
 
     lastViewPort: ViewPort;
 
+    xCanvasLast = 0;
+    yCanvasLast = 0;
+
+
     constructor(host: HTMLElement) {
         super();
         this.canvas = document.createElement('canvas');
@@ -32,21 +36,24 @@ export class CanvasRenderer extends Renderer {
         window.addEventListener('touchend', (e) => this.getInput(e, UserInputType.End));
     }
 
-    getInput(e: any, type: UserInputType): false {
+    getInput(e: Event, type: UserInputType): false {
         if (this.lastViewPort == null || this.onInput == null) { return; }
         // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
 
-        let xCanvas = 0;
-        let yCanvas = 0;
+        let xCanvas = this.xCanvasLast;
+        let yCanvas = this.yCanvasLast;
 
         let rect = this.canvas.getBoundingClientRect();
 
-        if (e.clientX != null) {
-            xCanvas = e.clientX - rect.left;
-            yCanvas = e.clientY - rect.top;
-        } else if (e.touches != null) {
-            xCanvas = e.touches[0].clientX - rect.left;
-            yCanvas = e.touches[0].clientY - rect.top;
+        let me = e as MouseEvent;
+        let te = e as TouchEvent;
+
+        if (me.clientX) {
+            xCanvas = me.clientX - rect.left;
+            yCanvas = me.clientY - rect.top;
+        } else if (te.touches != null && te.touches.length > 0) {
+            xCanvas = te.touches[0].clientX - rect.left;
+            yCanvas = te.touches[0].clientY - rect.top;
 
             // if (e.touches[1]) {
             //     if (DEBUG_MOUSE) { console.log('2 FINGER'); }
@@ -55,6 +62,9 @@ export class CanvasRenderer extends Renderer {
             //     ym2 = e.touches[1].clientY - rect.top;
             // }
         }
+
+        this.xCanvasLast = xCanvas;
+        this.yCanvasLast = yCanvas;
 
         // Scale for viewPort
         let u = (xCanvas / this.canvas.width);
@@ -97,12 +107,21 @@ export class CanvasRenderer extends Renderer {
         let xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
         let yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
 
+        // TODO: Is blocking highlight
+        // let hasHighlight = sprites.some(s => s.shouldHighlight);
+        // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
+        // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
+        // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
+
         for (let i = 0; i < sprites.length; i++) {
             let s = sprites[i];
             let x = (s.x - viewPort.xLeft) * xScale;
             let y = (s.y - viewPort.yTop) * yScale;
             let w = s.sprite.width * xScale;
             let h = s.sprite.height * yScale;
+
+            let overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
+            let overSize2 = 0; // overSize * 2;
 
             // if (s.shouldHighlight) {
             //     ctx.globalAlpha = 0.5;
@@ -114,7 +133,7 @@ export class CanvasRenderer extends Renderer {
             // }
             ctx.globalAlpha = s.opacity;
             if (!s.shouldHighlight) {
-                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
             } else {
                 // if (s.shouldHighlight) {
                 // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);

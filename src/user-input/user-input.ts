@@ -128,8 +128,23 @@ let highlightedTileItems: TileItem[];
 export class TileHighlighter {
     oldTilesUnder: Tile[] = [];
     oldTileItemsUnder: TileItem[] = [];
+    unhighlightTimeoutId: number;
 
     constructor(private map: Map) {
+    }
+
+    unhighlight() {
+        for (let t of this.oldTileItemsUnder) {
+            t.shouldHighlight = false;
+            t.shouldBringToFront = false;
+        }
+
+        for (let tile of this.oldTilesUnder) {
+            for (let t of tile.stack) {
+                t.shouldHighlight = false;
+                t.shouldBringToFront = false;
+            }
+        }
     }
 
     handleInput(input: UserInput) {
@@ -138,17 +153,16 @@ export class TileHighlighter {
 
         let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
 
-        for (let t of this.oldTileItemsUnder) {
-            t.shouldHighlight = false;
-            t.shouldBringToFront = false;
-        }
+        this.unhighlight();
+
+        clearTimeout(this.unhighlightTimeoutId);
+        this.unhighlightTimeoutId = setTimeout((() => {
+            this.unhighlight();
+        }), 1000);
+
+        this.oldTilesUnder = [];
         this.oldTileItemsUnder = [];
         highlightedTileItems = [];
-        // for (let tile of this.oldTilesUnder) {
-        //     for (let t of tile.stack) {
-        //         t.shouldHighlight = false;
-        //     }
-        // }
 
         if (movingTileItem) {
 

@@ -30,6 +30,10 @@
 
 - Improve Highlighting
 
+## 16:45-17:15
+
+- Support Touch
+
 ##
 
 - Add Piece Selection

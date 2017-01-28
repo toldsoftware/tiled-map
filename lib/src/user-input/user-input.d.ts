@@ -31,7 +31,9 @@ export declare class TileHighlighter {
     private map;
     oldTilesUnder: Tile[];
     oldTileItemsUnder: TileItem[];
+    unhighlightTimeoutId: number;
     constructor(map: Map);
+    unhighlight(): void;
     handleInput(input: UserInput): void;
 }
 export declare class TileMover {

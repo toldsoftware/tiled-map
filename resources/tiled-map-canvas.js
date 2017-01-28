@@ -602,6 +602,8 @@
 	    function CanvasRenderer(host) {
 	        var _this = _super.call(this) || this;
 	        _this.isInputDown = false;
+	        _this.xCanvasLast = 0;
+	        _this.yCanvasLast = 0;
 	        _this.canvas = document.createElement('canvas');
 	        _this.context = _this.canvas.getContext('2d');
 	        host.appendChild(_this.canvas);
@@ -622,17 +624,21 @@
 	            return;
 	        }
 	        // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
-	        var xCanvas = 0;
-	        var yCanvas = 0;
+	        var xCanvas = this.xCanvasLast;
+	        var yCanvas = this.yCanvasLast;
 	        var rect = this.canvas.getBoundingClientRect();
-	        if (e.clientX != null) {
-	            xCanvas = e.clientX - rect.left;
-	            yCanvas = e.clientY - rect.top;
+	        var me = e;
+	        var te = e;
+	        if (me.clientX) {
+	            xCanvas = me.clientX - rect.left;
+	            yCanvas = me.clientY - rect.top;
 	        }
-	        else if (e.touches != null) {
-	            xCanvas = e.touches[0].clientX - rect.left;
-	            yCanvas = e.touches[0].clientY - rect.top;
+	        else if (te.touches != null && te.touches.length > 0) {
+	            xCanvas = te.touches[0].clientX - rect.left;
+	            yCanvas = te.touches[0].clientY - rect.top;
 	        }
+	        this.xCanvasLast = xCanvas;
+	        this.yCanvasLast = yCanvas;
 	        // Scale for viewPort
 	        var u = (xCanvas / this.canvas.width);
 	        var v = (yCanvas / this.canvas.height);
@@ -664,12 +670,19 @@
 	        ctx.clearRect(0, 0, cvs.width, cvs.height);
 	        var xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
 	        var yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
+	        // TODO: Is blocking highlight
+	        // let hasHighlight = sprites.some(s => s.shouldHighlight);
+	        // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
+	        // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
+	        // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
 	        for (var i = 0; i < sprites.length; i++) {
 	            var s = sprites[i];
 	            var x = (s.x - viewPort.xLeft) * xScale;
 	            var y = (s.y - viewPort.yTop) * yScale;
 	            var w = s.sprite.width * xScale;
 	            var h = s.sprite.height * yScale;
+	            var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
+	            var overSize2 = 0; // overSize * 2;
 	            // if (s.shouldHighlight) {
 	            //     ctx.globalAlpha = 0.5;
 	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
@@ -680,7 +693,7 @@
 	            // }
 	            ctx.globalAlpha = s.opacity;
 	            if (!s.shouldHighlight) {
-	                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+	                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
 	            }
 	            else {
 	                // if (s.shouldHighlight) {
@@ -881,22 +894,34 @@
 	        this.oldTilesUnder = [];
 	        this.oldTileItemsUnder = [];
 	    }
-	    TileHighlighter.prototype.handleInput = function (input) {
-	        // if (input.type === UserInputType.Move) { return; }
-	        // console.log('TileMover.handleInput input=', input);
-	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	        for (var _i = 0, _b = this.oldTileItemsUnder; _i < _b.length; _i++) {
-	            var t = _b[_i];
+	    TileHighlighter.prototype.unhighlight = function () {
+	        for (var _i = 0, _a = this.oldTileItemsUnder; _i < _a.length; _i++) {
+	            var t = _a[_i];
 	            t.shouldHighlight = false;
 	            t.shouldBringToFront = false;
 	        }
+	        for (var _b = 0, _c = this.oldTilesUnder; _b < _c.length; _b++) {
+	            var tile = _c[_b];
+	            for (var _d = 0, _e = tile.stack; _d < _e.length; _d++) {
+	                var t = _e[_d];
+	                t.shouldHighlight = false;
+	                t.shouldBringToFront = false;
+	            }
+	        }
+	    };
+	    TileHighlighter.prototype.handleInput = function (input) {
+	        // if (input.type === UserInputType.Move) { return; }
+	        // console.log('TileMover.handleInput input=', input);
+	        var _this = this;
+	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	        this.unhighlight();
+	        clearTimeout(this.unhighlightTimeoutId);
+	        this.unhighlightTimeoutId = setTimeout((function () {
+	            _this.unhighlight();
+	        }), 1000);
+	        this.oldTilesUnder = [];
 	        this.oldTileItemsUnder = [];
 	        highlightedTileItems = [];
-	        // for (let tile of this.oldTilesUnder) {
-	        //     for (let t of tile.stack) {
-	        //         t.shouldHighlight = false;
-	        //     }
-	        // }
 	        if (movingTileItem) {
 	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
 	            var exceptMoving = tileItemsUnder.filter(function (t) { return t !== movingTileItem; });
@@ -912,8 +937,8 @@
 	            if (nearestOfAll) {
 	                var stack = nearestOfAll.tile.stack;
 	                var k = 0;
-	                for (var _c = 0, stack_1 = stack; _c < stack_1.length; _c++) {
-	                    var t = stack_1[_c];
+	                for (var _i = 0, stack_1 = stack; _i < stack_1.length; _i++) {
+	                    var t = stack_1[_i];
 	                    t.shouldHighlight = true;
 	                    t.shouldBringToFront = true;
 	                    // t.shouldBringToFront = k > 0;
@@ -928,8 +953,8 @@
 	            if (nearestTileItem) {
 	                var stack = nearestTileItem.tile.stack;
 	                var k = 0;
-	                for (var _d = 0, stack_2 = stack; _d < stack_2.length; _d++) {
-	                    var t = stack_2[_d];
+	                for (var _b = 0, stack_2 = stack; _b < stack_2.length; _b++) {
+	                    var t = stack_2[_b];
 	                    t.shouldHighlight = true;
 	                    t.shouldBringToFront = k > 0;
 	                    this.oldTileItemsUnder.push(t);
