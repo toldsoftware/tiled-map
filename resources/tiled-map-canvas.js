@@ -54,7 +54,7 @@
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, viewPort, r, tileHighlighter, tileMover, viewPortMover;
+	        var map, viewPort, r, tileHighlighter, tileMover, tileCloner, viewPortScroller, mode, animate;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -75,14 +75,43 @@
 	                    viewPort.yBottom = 600;
 	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
-	                    tileMover = new user_input_1.TileMover(map);
-	                    viewPortMover = new user_input_1.ViewportMover(map, viewPort);
+	                    tileMover = new user_input_1.TileMover(map, false);
+	                    tileCloner = new user_input_1.TileMover(map, true);
+	                    viewPortScroller = new user_input_1.ViewportScroller(map, viewPort);
+	                    mode = 0;
 	                    r.onInput = function (input) {
 	                        tileHighlighter.handleInput(input);
-	                        tileMover.handleInput(input);
 	                        // viewPortMover.handleInput(input);
-	                        r.draw(map, viewPort);
+	                        if (!(input.u < 0.2 && input.v > 0.8)) {
+	                            viewPortScroller.handleInput(input);
+	                        }
+	                        else {
+	                            viewPortScroller.stop();
+	                        }
+	                        if (input.type === user_input_1.UserInputType.End
+	                            && input.duration < 1000
+	                            && input.u < 0.2 && input.v > 0.8) {
+	                            mode++;
+	                        }
+	                        if (input.type === user_input_1.UserInputType.End
+	                            && input.duration < 1000
+	                            && input.u > 0.8 && input.v < 0.2) {
+	                            save(map);
+	                        }
+	                        switch (mode % 2) {
+	                            case 0:
+	                                tileMover.handleInput(input);
+	                                break;
+	                            case 1:
+	                                tileCloner.handleInput(input);
+	                                break;
+	                        }
 	                    };
+	                    animate = function () {
+	                        r.draw(map, viewPort);
+	                        requestAnimationFrame(animate);
+	                    };
+	                    requestAnimationFrame(animate);
 	                    setTimeout(function () {
 	                        r.draw(map, viewPort);
 	                    }, 250);
@@ -92,9 +121,36 @@
 	        });
 	    });
 	}
-	function load() { load_async().then(); }
-	exports.load = load;
-	load();
+	function save(map) {
+	    var data = {
+	        tiles: []
+	    };
+	    for (var i = 0; i < map.tiles.length; i++) {
+	        var column = map.tiles[i];
+	        for (var j = 0; j < column.length; j++) {
+	            var tile = column[j];
+	            for (var k = 0; k < tile.stack.length; k++) {
+	                if (k > 0) {
+	                    var tileItem = tile.stack[k];
+	                    var sprite = tileItem.sprite;
+	                    data.tiles.push({
+	                        i: i, j: j, k: k,
+	                        type: {
+	                            sheetUrl: sprite.spriteSheet.url,
+	                            x: sprite.xSheet,
+	                            y: sprite.ySheet
+	                        }
+	                    });
+	                }
+	            }
+	        }
+	    }
+	    console.log(data);
+	    console.log(JSON.stringify(data));
+	}
+	function setup() { load_async().then(); }
+	exports.setup = setup;
+	setup();
 
 
 /***/ },
@@ -578,18 +634,25 @@
 	            yCanvas = e.touches[0].clientY - rect.top;
 	        }
 	        // Scale for viewPort
-	        var x = this.lastViewPort.xLeft + (xCanvas / this.canvas.width) * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
-	        var y = this.lastViewPort.yTop + (yCanvas / this.canvas.height) * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+	        var u = (xCanvas / this.canvas.width);
+	        var v = (yCanvas / this.canvas.height);
+	        var x = this.lastViewPort.xLeft + u * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
+	        var y = this.lastViewPort.yTop + v * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
 	        if (type === user_input_1.UserInputType.Move && this.isInputDown) {
 	            type = user_input_1.UserInputType.Drag;
 	        }
-	        this.onInput({ x: x, y: y, type: type });
+	        var duration = Date.now() - (this.inputDownStart || Date.now());
+	        this.onInput({ x: x, y: y, type: type, duration: duration, u: u, v: v });
 	        if (type === user_input_1.UserInputType.Start) {
 	            this.isInputDown = true;
+	            this.inputDownStart = Date.now();
 	        }
 	        else if (type === user_input_1.UserInputType.End) {
 	            this.isInputDown = false;
+	            this.inputDownStart = null;
 	        }
+	        e.preventDefault();
+	        return false;
 	    };
 	    CanvasRenderer.prototype.drawItems = function (sprites, viewPort) {
 	        this.lastViewPort = viewPort;
@@ -2609,11 +2672,11 @@
 	exports.TileHighlighter = TileHighlighter;
 	var movingTileItem;
 	var TileMover = (function () {
-	    function TileMover(map) {
+	    function TileMover(map, shouldClone) {
 	        this.map = map;
+	        this.shouldClone = shouldClone;
 	    }
 	    TileMover.prototype.handleInput = function (input) {
-	        var _this = this;
 	        if (input.type === UserInputType.Move) {
 	            return;
 	        }
@@ -2623,6 +2686,10 @@
 	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
 	            if (!nearestTileItem) {
 	                return;
+	            }
+	            if (this.shouldClone) {
+	                nearestTileItem = tslib_1.__assign({}, nearestTileItem);
+	                nearestTileItem.tile.stack.push(nearestTileItem);
 	            }
 	            this.activeTileItem = nearestTileItem;
 	            this.dxStart = this.activeTileItem.x - input.x;
@@ -2639,8 +2706,9 @@
 	        if (input.type === UserInputType.End) {
 	            // Move Stack
 	            var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
-	            console.log('Move Stack', this.activeTileItem.tile, this.activeTileItem, tilesUnder);
-	            if (tilesUnder.some(function (t) { return t === _this.activeTileItem.tile; })) {
+	            var oldTile_1 = this.activeTileItem.tile;
+	            console.log('Move Stack', oldTile_1, this.activeTileItem, tilesUnder);
+	            if (oldTile_1 && tilesUnder.some(function (t) { return t === oldTile_1; })) {
 	                // Return to old position
 	                this.activeTileItem.x = this.xStart;
 	                this.activeTileItem.y = this.yStart;
@@ -2652,14 +2720,15 @@
 	                if (newTile == null) {
 	                    return;
 	                }
-	                var oldTile = this.activeTileItem.tile;
 	                // Calculate New position                
 	                this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
 	                this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
 	                this.activeTileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
 	                this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
 	                // Change stack
-	                oldTile.stack.splice(oldTile.stack.indexOf(this.activeTileItem), 1);
+	                if (oldTile_1) {
+	                    oldTile_1.stack.splice(oldTile_1.stack.indexOf(this.activeTileItem), 1);
+	                }
 	                newTile.stack.push(this.activeTileItem);
 	                this.activeTileItem.tile = newTile;
 	            }
@@ -2702,8 +2771,8 @@
 	        // Reduce jumping
 	        // dx = Math.max(-2, Math.min(1, dx));
 	        // dy = Math.max(-1, Math.min(1, dy));
-	        dx = Math.round(dx);
-	        dy = Math.round(dy);
+	        // dx = Math.round(dx);
+	        // dy = Math.round(dy);
 	        this.viewPort.xLeft = this.xLeftStart - dx;
 	        this.viewPort.yTop = this.yTopStart - dy;
 	        this.viewPort.xRight = this.viewPort.xLeft + w;
@@ -2715,6 +2784,59 @@
 	    return ViewportMover;
 	}());
 	exports.ViewportMover = ViewportMover;
+	var ViewportScroller = (function () {
+	    function ViewportScroller(map, viewPort) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	        this.speed = 20;
+	    }
+	    ViewportScroller.prototype.handleInput = function (input) {
+	        var _this = this;
+	        var r = 0.1;
+	        var dx = 0;
+	        var dy = 0;
+	        if (input.u < r && input.u > 0) {
+	            dx = -1 * Math.pow(1 - (input.u / r), 2);
+	        }
+	        if (input.u > 1 - r && input.u < 1) {
+	            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
+	        }
+	        if (input.v < r && input.v > 0) {
+	            dy = -1 * Math.pow(1 - (input.v / r), 2);
+	        }
+	        if (input.v > 1 - r && input.v < 1) {
+	            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
+	        }
+	        this.dx = dx;
+	        this.dy = dy;
+	        // console.log(dx, dy);
+	        if (dx === 0 && dy === 0) {
+	            return;
+	        }
+	        cancelAnimationFrame(this.animationId);
+	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
+	    };
+	    ViewportScroller.prototype.stop = function () {
+	        this.dx = 0;
+	        this.dy = 0;
+	    };
+	    ViewportScroller.prototype.animate = function () {
+	        var _this = this;
+	        if (this.dx === 0 && this.dy === 0) {
+	            return;
+	        }
+	        var w = this.viewPort.xRight - this.viewPort.xLeft;
+	        var h = this.viewPort.yBottom - this.viewPort.yTop;
+	        this.viewPort.xLeft += this.dx * this.speed;
+	        this.viewPort.yTop += this.dy * this.speed;
+	        this.viewPort.xRight = this.viewPort.xLeft + w;
+	        this.viewPort.yBottom = this.viewPort.yTop + h;
+	        cancelAnimationFrame(this.animationId);
+	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
+	    };
+	    return ViewportScroller;
+	}());
+	exports.ViewportScroller = ViewportScroller;
 
 
 /***/ },

@@ -1,6 +1,10 @@
 import { ViewPort, Map, Tile, TileItem } from '../tiled-map';
 
 export interface UserInput {
+    u: number;
+    v: number;
+    duration: number;
+
     x: number;
     y: number;
     type: UserInputType;
@@ -158,7 +162,7 @@ export class TileMover {
     yStart: number;
     zStart: number;
 
-    constructor(private map: Map) {
+    constructor(private map: Map, private shouldClone: boolean) {
     }
 
     handleInput(input: UserInput) {
@@ -169,6 +173,11 @@ export class TileMover {
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
             let nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
             if (!nearestTileItem) { return; }
+
+            if (this.shouldClone) {
+                nearestTileItem = { ...nearestTileItem };
+                nearestTileItem.tile.stack.push(nearestTileItem);
+            }
 
             this.activeTileItem = nearestTileItem;
             this.dxStart = this.activeTileItem.x - input.x;
@@ -187,10 +196,11 @@ export class TileMover {
         if (input.type === UserInputType.End) {
             // Move Stack
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+            let oldTile = this.activeTileItem.tile;
 
-            console.log('Move Stack', this.activeTileItem.tile, this.activeTileItem, tilesUnder);
+            console.log('Move Stack', oldTile, this.activeTileItem, tilesUnder);
 
-            if (tilesUnder.some(t => t === this.activeTileItem.tile)) {
+            if (oldTile && tilesUnder.some(t => t === oldTile)) {
                 // Return to old position
                 this.activeTileItem.x = this.xStart;
                 this.activeTileItem.y = this.yStart;
@@ -200,8 +210,6 @@ export class TileMover {
                 let newTile = getNearestTile(this.map, tilesUnder, input);
                 if (newTile == null) { return; }
 
-                let oldTile = this.activeTileItem.tile;
-
                 // Calculate New position                
                 this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
                 this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
@@ -209,7 +217,9 @@ export class TileMover {
                 this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
 
                 // Change stack
-                oldTile.stack.splice(oldTile.stack.indexOf(this.activeTileItem), 1);
+                if (oldTile) {
+                    oldTile.stack.splice(oldTile.stack.indexOf(this.activeTileItem), 1);
+                }
                 newTile.stack.push(this.activeTileItem);
                 this.activeTileItem.tile = newTile;
             }
@@ -261,8 +271,8 @@ export class ViewportMover {
         // Reduce jumping
         // dx = Math.max(-2, Math.min(1, dx));
         // dy = Math.max(-1, Math.min(1, dy));
-        dx = Math.round(dx);
-        dy = Math.round(dy);
+        // dx = Math.round(dx);
+        // dy = Math.round(dy);
 
         this.viewPort.xLeft = this.xLeftStart - dx;
         this.viewPort.yTop = this.yTopStart - dy;
@@ -273,5 +283,76 @@ export class ViewportMover {
         if (input.type === UserInputType.End) {
             this.isDragging = false;
         }
+    }
+}
+
+export class ViewportScroller {
+
+    animationId: number;
+    dx: number;
+    dy: number;
+    speed = 20;
+
+    constructor(private map: Map, private viewPort: ViewPort) {
+    }
+
+    handleInput(input: UserInput) {
+
+        let r = 0.1;
+
+        let dx = 0;
+        let dy = 0;
+
+        if (input.u < r && input.u > 0) {
+            dx = -1 * Math.pow(1 - (input.u / r), 2);
+        }
+
+        if (input.u > 1 - r && input.u < 1) {
+            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
+        }
+
+        if (input.v < r && input.v > 0) {
+            dy = -1 * Math.pow(1 - (input.v / r), 2);
+        }
+
+        if (input.v > 1 - r && input.v < 1) {
+            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
+        }
+
+        this.dx = dx;
+        this.dy = dy;
+
+        // console.log(dx, dy);
+
+        if (dx === 0 && dy === 0) {
+            return;
+        }
+
+        cancelAnimationFrame(this.animationId);
+        this.animationId = requestAnimationFrame(() => this.animate());
+    }
+
+    stop() {
+        this.dx = 0;
+        this.dy = 0;
+    }
+
+    animate() {
+
+        if (this.dx === 0 && this.dy === 0) {
+            return;
+        }
+
+        let w = this.viewPort.xRight - this.viewPort.xLeft;
+        let h = this.viewPort.yBottom - this.viewPort.yTop;
+
+        this.viewPort.xLeft += this.dx * this.speed;
+        this.viewPort.yTop += this.dy * this.speed;
+
+        this.viewPort.xRight = this.viewPort.xLeft + w;
+        this.viewPort.yBottom = this.viewPort.yTop + h;
+
+        cancelAnimationFrame(this.animationId);
+        this.animationId = requestAnimationFrame(() => this.animate());
     }
 }

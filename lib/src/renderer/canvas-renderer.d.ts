@@ -6,9 +6,10 @@ export declare class CanvasRenderer extends Renderer {
     context: CanvasRenderingContext2D;
     onInput: (input: UserInput) => void;
     isInputDown: boolean;
+    inputDownStart: number;
     lastViewPort: ViewPort;
     constructor(host: HTMLElement);
-    getInput(e: any, type: UserInputType): UserInput;
+    getInput(e: any, type: UserInputType): false;
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
     drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 }

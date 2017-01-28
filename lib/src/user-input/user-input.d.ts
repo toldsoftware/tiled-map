@@ -1,5 +1,8 @@
 import { ViewPort, Map, Tile, TileItem } from '../tiled-map';
 export interface UserInput {
+    u: number;
+    v: number;
+    duration: number;
     x: number;
     y: number;
     type: UserInputType;
@@ -27,13 +30,14 @@ export declare class TileHighlighter {
 }
 export declare class TileMover {
     private map;
+    private shouldClone;
     activeTileItem: TileItem;
     dxStart: number;
     dyStart: number;
     xStart: number;
     yStart: number;
     zStart: number;
-    constructor(map: Map);
+    constructor(map: Map, shouldClone: boolean);
     handleInput(input: UserInput): void;
 }
 export declare class ViewportMover {
@@ -46,4 +50,16 @@ export declare class ViewportMover {
     yTopStart: number;
     constructor(map: Map, viewPort: ViewPort);
     handleInput(input: UserInput): void;
+}
+export declare class ViewportScroller {
+    private map;
+    private viewPort;
+    animationId: number;
+    dx: number;
+    dy: number;
+    speed: number;
+    constructor(map: Map, viewPort: ViewPort);
+    handleInput(input: UserInput): void;
+    stop(): void;
+    animate(): void;
 }

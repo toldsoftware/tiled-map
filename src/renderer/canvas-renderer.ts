@@ -10,6 +10,7 @@ export class CanvasRenderer extends Renderer {
 
     onInput: (input: UserInput) => void;
     isInputDown = false;
+    inputDownStart: number;
 
     lastViewPort: ViewPort;
 
@@ -31,7 +32,7 @@ export class CanvasRenderer extends Renderer {
         window.addEventListener('touchend', (e) => this.getInput(e, UserInputType.End));
     }
 
-    getInput(e: any, type: UserInputType): UserInput {
+    getInput(e: any, type: UserInputType): false {
         if (this.lastViewPort == null || this.onInput == null) { return; }
         // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
 
@@ -56,20 +57,30 @@ export class CanvasRenderer extends Renderer {
         }
 
         // Scale for viewPort
-        let x = this.lastViewPort.xLeft + (xCanvas / this.canvas.width) * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
-        let y = this.lastViewPort.yTop + (yCanvas / this.canvas.height) * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+        let u = (xCanvas / this.canvas.width);
+        let v = (yCanvas / this.canvas.height);
+
+        let x = this.lastViewPort.xLeft + u * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
+        let y = this.lastViewPort.yTop + v * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
 
         if (type === UserInputType.Move && this.isInputDown) {
             type = UserInputType.Drag;
         }
 
-        this.onInput({ x, y, type });
+        let duration = Date.now() - (this.inputDownStart || Date.now());
+
+        this.onInput({ x, y, type, duration, u, v });
 
         if (type === UserInputType.Start) {
             this.isInputDown = true;
+            this.inputDownStart = Date.now();
         } else if (type === UserInputType.End) {
             this.isInputDown = false;
+            this.inputDownStart = null;
         }
+
+        e.preventDefault();
+        return false;
     }
 
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort) {

@@ -19,3 +19,9 @@
 
 - Add Viewport Dragging
 	- BUGGY - DISABLED for now
+
+## 7:00-9:00
+
+- Add Cloning
+- Add Moving
+- Add Serializing
