@@ -2,6 +2,7 @@ import { Map, MapShape, ViewPort } from '../src/tiled-map';
 import { KenneyXmlLoader } from '../src/sprite-sheet/kenney-xml-loader';
 import { CanvasRenderer } from '../src/renderer/canvas-renderer';
 import { createMapWithSpriteSheetSamples } from '../src/loader';
+import { TileMover, TileHighlighter } from '../src/user-input/user-input';
 
 // TODO: Load a test map
 
@@ -30,6 +31,16 @@ async function load_async() {
     // viewPort.yBottom = 600;
 
     let r = new CanvasRenderer(document.getElementById('host'));
+
+    let tileHighlighter = new TileHighlighter(map);
+    let tileMover = new TileMover(map);
+
+    r.onInput = (input) => {
+        tileHighlighter.handleInput(input);
+        tileMover.handleInput(input);
+
+        r.draw(map, viewPort);
+    };
 
     setTimeout(() => {
         r.draw(map, viewPort);

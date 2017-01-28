@@ -31,10 +31,15 @@ export class Tile {
 }
 
 export class TileItem implements SpriteInstance {
+    tile: Tile;
+
     sprite: Sprite;
     x: number;
     y: number;
     zIndex: number;
+
+    shouldHighlight: boolean;
+    opacity: number;
 }
 
 export interface SpriteInstance {
@@ -42,6 +47,9 @@ export interface SpriteInstance {
     x: number;
     y: number;
     zIndex: number;
+
+    shouldHighlight: boolean;
+    opacity: number;
 }
 
 export class Sprite {
@@ -61,5 +69,6 @@ export class Sprite {
 export class SpriteSheet {
     url: string;
     image?: any;
+    imageEffects?: any[];
     sprites: Sprite[];
 }

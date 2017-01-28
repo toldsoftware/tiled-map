@@ -38,7 +38,7 @@ export class KenneyXmlLoader extends SpriteSheetLoader {
             let yBottomCenter_fromTopLeft = t.height + (tileWidth - t.width) * 0.5 * (tileHeight / tileWidth);
             let stackBottomKind = 'ground';
             let stackTopKind = 'top';
-            let stackHeight = 50;
+            let stackHeight = 32 + 2;
 
             return {
                 spriteSheet,
@@ -53,7 +53,7 @@ export class KenneyXmlLoader extends SpriteSheetLoader {
                 stackBottomKind: stackBottomKind,
                 stackTopKind: stackTopKind,
 
-            };
+            } as Sprite;
         });
 
         return spriteSheet;

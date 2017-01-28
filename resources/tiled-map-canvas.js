@@ -50,10 +50,11 @@
 	var kenney_xml_loader_1 = __webpack_require__(3);
 	var canvas_renderer_1 = __webpack_require__(6);
 	var loader_1 = __webpack_require__(8);
+	var user_input_1 = __webpack_require__(16);
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, viewPort, r;
+	        var map, viewPort, r, tileHighlighter, tileMover;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -72,6 +73,13 @@
 	                    viewPort.xRight = 1600;
 	                    viewPort.yBottom = 600;
 	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
+	                    tileHighlighter = new user_input_1.TileHighlighter(map);
+	                    tileMover = new user_input_1.TileMover(map);
+	                    r.onInput = function (input) {
+	                        tileHighlighter.handleInput(input);
+	                        tileMover.handleInput(input);
+	                        r.draw(map, viewPort);
+	                    };
 	                    setTimeout(function () {
 	                        r.draw(map, viewPort);
 	                    }, 250);
@@ -300,7 +308,7 @@
 	            var yBottomCenter_fromTopLeft = t.height + (tileWidth - t.width) * 0.5 * (tileHeight / tileWidth);
 	            var stackBottomKind = 'ground';
 	            var stackTopKind = 'top';
-	            var stackHeight = 50;
+	            var stackHeight = 32 + 2;
 	            return {
 	                spriteSheet: spriteSheet,
 	                xSheet: t.x,
@@ -528,10 +536,13 @@
 	"use strict";
 	var tslib_1 = __webpack_require__(1);
 	var renderer_1 = __webpack_require__(7);
+	var user_input_1 = __webpack_require__(16);
+	var canvas_image_effect_1 = __webpack_require__(17);
 	var CanvasRenderer = (function (_super) {
 	    tslib_1.__extends(CanvasRenderer, _super);
 	    function CanvasRenderer(host) {
 	        var _this = _super.call(this) || this;
+	        _this.isInputDown = false;
 	        _this.canvas = document.createElement('canvas');
 	        _this.context = _this.canvas.getContext('2d');
 	        host.appendChild(_this.canvas);
@@ -539,9 +550,46 @@
 	        // this.canvas.style.height = '100%';
 	        _this.canvas.width = host.clientWidth;
 	        _this.canvas.height = host.clientHeight;
+	        _this.canvas.addEventListener('mousedown', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
+	        _this.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
+	        window.addEventListener('mousemove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
+	        window.addEventListener('touchmove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
+	        window.addEventListener('mouseup', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
+	        window.addEventListener('touchend', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
 	        return _this;
 	    }
+	    CanvasRenderer.prototype.getInput = function (e, type) {
+	        if (this.lastViewPort == null || this.onInput == null) {
+	            return;
+	        }
+	        // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
+	        var xCanvas = 0;
+	        var yCanvas = 0;
+	        var rect = this.canvas.getBoundingClientRect();
+	        if (e.clientX != null) {
+	            xCanvas = e.clientX - rect.left;
+	            yCanvas = e.clientY - rect.top;
+	        }
+	        else if (e.touches != null) {
+	            xCanvas = e.touches[0].clientX - rect.left;
+	            yCanvas = e.touches[0].clientY - rect.top;
+	        }
+	        // Scale for viewPort
+	        var x = this.lastViewPort.xLeft + (xCanvas / this.canvas.width) * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
+	        var y = this.lastViewPort.yTop + (yCanvas / this.canvas.height) * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+	        if (type === user_input_1.UserInputType.Move && this.isInputDown) {
+	            type = user_input_1.UserInputType.Drag;
+	        }
+	        this.onInput({ x: x, y: y, type: type });
+	        if (type === user_input_1.UserInputType.Start) {
+	            this.isInputDown = true;
+	        }
+	        else if (type === user_input_1.UserInputType.End) {
+	            this.isInputDown = false;
+	        }
+	    };
 	    CanvasRenderer.prototype.drawItems = function (sprites, viewPort) {
+	        this.lastViewPort = viewPort;
 	        // Draw on the canvas context
 	        var cvs = this.canvas;
 	        var ctx = this.context;
@@ -554,8 +602,44 @@
 	            var y = (s.y - viewPort.yTop) * yScale;
 	            var w = s.sprite.width * xScale;
 	            var h = s.sprite.height * yScale;
-	            ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+	            // if (s.shouldHighlight) {
+	            //     ctx.globalAlpha = 0.5;
+	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
+	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
+	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
+	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
+	            //     ctx.globalAlpha = 1;
+	            // }
+	            ctx.globalAlpha = s.opacity;
+	            if (!s.shouldHighlight) {
+	                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+	            }
+	            else {
+	                // if (s.shouldHighlight) {
+	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
+	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.RgbRotate2), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
+	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
+	            }
+	            ctx.globalAlpha = 1;
 	        }
+	        // // Draw Highlight above others
+	        // for (let i = 0; i < sprites.length; i++) {
+	        //     let s = sprites[i];
+	        //     let x = (s.x - viewPort.xLeft) * xScale;
+	        //     let y = (s.y - viewPort.yTop) * yScale;
+	        //     let w = s.sprite.width * xScale;
+	        //     let h = s.sprite.height * yScale;
+	        //     if (s.shouldHighlight) {
+	        //         // ctx.globalAlpha = 0.25;
+	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
+	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
+	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
+	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
+	        //         // ctx.globalAlpha = 1;
+	        //         ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
+	        //     }
+	        // }
 	    };
 	    CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, viewPort) {
 	        var cvs = this.canvas;
@@ -672,15 +756,18 @@
 	                            map.tiles[i] = map.tiles[i] || [];
 	                            tile = map.tiles[i][j] = map.tiles[i][j] || {
 	                                stack: [],
-	                                x: x,
-	                                y: y,
+	                                x: xBottomCenter - tileWidth * 0.5,
+	                                y: yBottomCenter - tileHeight,
 	                                zIndex: zIndex
 	                            };
 	                            tile.stack.push({
+	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
 	                                y: y,
-	                                zIndex: zIndex
+	                                zIndex: zIndex,
+	                                opacity: 1,
+	                                shouldHighlight: false
 	                            });
 	                        }
 	                    }
@@ -702,10 +789,13 @@
 	                                zIndex: zIndex
 	                            };
 	                            tile.stack[0] = {
+	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
 	                                y: y,
-	                                zIndex: zIndex
+	                                zIndex: zIndex,
+	                                opacity: 1,
+	                                shouldHighlight: false
 	                            };
 	                            iSprite++;
 	                            if (iSprite >= spriteCount) {
@@ -2388,6 +2478,339 @@
 /***/ function(module, exports) {
 
 	/* (ignored) */
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var tslib_1 = __webpack_require__(1);
+	var UserInputType;
+	(function (UserInputType) {
+	    UserInputType[UserInputType["Move"] = 0] = "Move";
+	    UserInputType[UserInputType["Start"] = 1] = "Start";
+	    UserInputType[UserInputType["Drag"] = 2] = "Drag";
+	    UserInputType[UserInputType["End"] = 3] = "End";
+	})(UserInputType = exports.UserInputType || (exports.UserInputType = {}));
+	function getTilesAtInput(map, input) {
+	    if (input.tilesUnder) {
+	        return { tilesUnder: input.tilesUnder, tileItemsUnder: input.tileItemsUnder };
+	    }
+	    var tilesUnder = [];
+	    var tileItemsUnder = [];
+	    var x = input.x;
+	    var y = input.y;
+	    var tw = map.tileWidth;
+	    var th = map.tileHeight;
+	    for (var i = 0; i < map.tiles.length; i++) {
+	        var column = map.tiles[i];
+	        for (var j = 0; j < column.length; j++) {
+	            var tile = column[j];
+	            var isTileUnder = false;
+	            if (tile.x <= x && tile.x + tw >= x
+	                && tile.y <= y && tile.y + th >= y) {
+	                tilesUnder.push(tile);
+	                isTileUnder = true;
+	            }
+	            for (var k = 0; k < tile.stack.length; k++) {
+	                var tileItem = tile.stack[k];
+	                if (tileItem.x <= x && tileItem.x + tileItem.sprite.width >= x
+	                    && tileItem.y <= y && tileItem.y + tileItem.sprite.height >= y) {
+	                    tileItemsUnder.push(tileItem);
+	                }
+	            }
+	        }
+	    }
+	    // console.log('getTilesAtInput', tilesUnder, tileItemsUnder);
+	    input.tilesUnder = tilesUnder;
+	    input.tileItemsUnder = tileItemsUnder;
+	    return { tilesUnder: tilesUnder, tileItemsUnder: tileItemsUnder };
+	}
+	exports.getTilesAtInput = getTilesAtInput;
+	function getNearestTile(map, tilesUnder, input) {
+	    if (tilesUnder.length === 0) {
+	        return null;
+	    }
+	    return tilesUnder.map(function (t) { return ({
+	        t: t,
+	        dx: t.x + map.tileWidth * 0.5 - input.x,
+	        dy: t.y + map.tileHeight * 0.5 - input.y
+	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
+	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
+	        .t;
+	}
+	exports.getNearestTile = getNearestTile;
+	function getNearestTileItem(tileItemsUnder, input) {
+	    var topTiles = tileItemsUnder
+	        .filter(function (t) { return t.tile.stack[t.tile.stack.length - 1] === t; });
+	    if (topTiles.length === 0) {
+	        return null;
+	    }
+	    return topTiles
+	        .map(function (t) { return ({
+	        t: t,
+	        dx: t.x + t.sprite.xBottomCenter_fromTopLeft - input.x,
+	        dy: t.y + t.sprite.yBottomCenter_fromTopLeft - t.sprite.height * 0.5 - input.y
+	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
+	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
+	        .t;
+	}
+	exports.getNearestTileItem = getNearestTileItem;
+	var TileHighlighter = (function () {
+	    function TileHighlighter(map) {
+	        this.map = map;
+	        this.oldTilesUnder = [];
+	        this.oldTileItemsUnder = [];
+	    }
+	    TileHighlighter.prototype.handleInput = function (input) {
+	        // if (input.type === UserInputType.Move) { return; }
+	        // console.log('TileMover.handleInput input=', input);
+	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	        for (var _i = 0, _b = this.oldTileItemsUnder; _i < _b.length; _i++) {
+	            var t = _b[_i];
+	            t.shouldHighlight = false;
+	        }
+	        // for (let tile of this.oldTilesUnder) {
+	        //     for (let t of tile.stack) {
+	        //         t.shouldHighlight = false;
+	        //     }
+	        // }
+	        var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+	        if (nearestTileItem) {
+	            nearestTileItem.shouldHighlight = true;
+	            this.oldTileItemsUnder = [nearestTileItem];
+	        }
+	        if (nearestTileItem.opacity < 1) {
+	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
+	            if (nearestTile) {
+	                for (var _c = 0, _d = nearestTile.stack; _c < _d.length; _c++) {
+	                    var t = _d[_c];
+	                    t.shouldHighlight = true;
+	                    this.oldTileItemsUnder.push(t);
+	                }
+	            }
+	        }
+	        // this.oldTilesUnder = [nearestTile];
+	    };
+	    return TileHighlighter;
+	}());
+	exports.TileHighlighter = TileHighlighter;
+	var TileMover = (function () {
+	    function TileMover(map) {
+	        this.map = map;
+	    }
+	    TileMover.prototype.handleInput = function (input) {
+	        var _this = this;
+	        if (input.type === UserInputType.Move) {
+	            return;
+	        }
+	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.activeTileItem) {
+	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+	            if (!nearestTileItem) {
+	                return;
+	            }
+	            this.activeTileItem = nearestTileItem;
+	            this.dxStart = this.activeTileItem.x - input.x;
+	            this.dyStart = this.activeTileItem.y - input.y;
+	            this.xStart = this.activeTileItem.x;
+	            this.yStart = this.activeTileItem.y;
+	            this.zStart = this.activeTileItem.zIndex;
+	        }
+	        this.activeTileItem.x = input.x + this.dxStart;
+	        this.activeTileItem.y = input.y + this.dyStart;
+	        this.activeTileItem.shouldHighlight = true;
+	        this.activeTileItem.zIndex = 10000;
+	        this.activeTileItem.opacity = 0.5;
+	        if (input.type === UserInputType.End) {
+	            // Move Stack
+	            var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
+	            console.log('Move Stack', this.activeTileItem.tile, this.activeTileItem, tilesUnder);
+	            if (tilesUnder.some(function (t) { return t === _this.activeTileItem.tile; })) {
+	                // Return to old position
+	                this.activeTileItem.x = this.xStart;
+	                this.activeTileItem.y = this.yStart;
+	                this.activeTileItem.zIndex = this.zStart;
+	            }
+	            else {
+	                // Move to new stack
+	                var newTile = getNearestTile(this.map, tilesUnder, input);
+	                if (newTile == null) {
+	                    return;
+	                }
+	                var oldTile = this.activeTileItem.tile;
+	                // Calculate New position                
+	                this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
+	                this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
+	                this.activeTileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
+	                this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
+	                // Change stack
+	                oldTile.stack.splice(oldTile.stack.indexOf(this.activeTileItem), 1);
+	                newTile.stack.push(this.activeTileItem);
+	                this.activeTileItem.tile = newTile;
+	            }
+	            this.activeTileItem.shouldHighlight = false;
+	            this.activeTileItem.opacity = 1;
+	            this.activeTileItem = null;
+	        }
+	    };
+	    return TileMover;
+	}());
+	exports.TileMover = TileMover;
+
+
+/***/ },
+/* 17 */
+/***/ function(module, exports) {
+
+	"use strict";
+	var DEBUG = false;
+	var ImageEffectKind;
+	(function (ImageEffectKind) {
+	    ImageEffectKind[ImageEffectKind["Light"] = 0] = "Light";
+	    ImageEffectKind[ImageEffectKind["Dark"] = 1] = "Dark";
+	    ImageEffectKind[ImageEffectKind["RgbRotate"] = 2] = "RgbRotate";
+	    ImageEffectKind[ImageEffectKind["RgbRotate2"] = 3] = "RgbRotate2";
+	})(ImageEffectKind = exports.ImageEffectKind || (exports.ImageEffectKind = {}));
+	function getImageEffect(spriteSheet, kind) {
+	    if (spriteSheet.image == null || spriteSheet.image.width <= 0) {
+	        return null;
+	    }
+	    spriteSheet.imageEffects = spriteSheet.imageEffects || [];
+	    var resultImage = spriteSheet.imageEffects[kind];
+	    if (resultImage == null) {
+	        // Placeholder
+	        spriteSheet.imageEffects[kind] = 0;
+	        setTimeout(function () {
+	            console.log('Create Image Effect START kind=', kind);
+	            switch (kind) {
+	                case ImageEffectKind.Dark:
+	                    resultImage = createImageEffect_dark(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.RgbRotate:
+	                    resultImage = createImageEffect_rgbRotate(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.RgbRotate2:
+	                    resultImage = createImageEffect_rgbRotate2(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.Light:
+	                default:
+	                    resultImage = createImageEffect_light(spriteSheet.image);
+	                    break;
+	            }
+	            spriteSheet.imageEffects[kind] = resultImage;
+	            console.log('Create Image Effect END kind=', kind);
+	        });
+	    }
+	    return resultImage || spriteSheet.image;
+	}
+	exports.getImageEffect = getImageEffect;
+	function createImageEffect_dark(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = r * 0.7;
+	            data[i + 1] = g * 0.7;
+	            data[i + 2] = b * 0.8;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_dark = createImageEffect_dark;
+	function createImageEffect_light(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = r * 0.6 + 225 * 0.4;
+	            data[i + 1] = g * 0.6 + 225 * 0.4;
+	            data[i + 2] = b * 0.4 + 225 * 0.6;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_light = createImageEffect_light;
+	function createImageEffect_rgbRotate(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = g;
+	            data[i + 1] = b;
+	            data[i + 2] = r;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_rgbRotate = createImageEffect_rgbRotate;
+	function createImageEffect_rgbRotate2(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = b;
+	            data[i + 1] = r;
+	            data[i + 2] = g;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_rgbRotate2 = createImageEffect_rgbRotate2;
+
 
 /***/ }
 /******/ ]);

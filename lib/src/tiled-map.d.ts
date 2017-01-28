@@ -24,16 +24,21 @@ export declare class Tile {
     zIndex: number;
 }
 export declare class TileItem implements SpriteInstance {
+    tile: Tile;
     sprite: Sprite;
     x: number;
     y: number;
     zIndex: number;
+    shouldHighlight: boolean;
+    opacity: number;
 }
 export interface SpriteInstance {
     sprite: Sprite;
     x: number;
     y: number;
     zIndex: number;
+    shouldHighlight: boolean;
+    opacity: number;
 }
 export declare class Sprite {
     spriteSheet: SpriteSheet;
@@ -50,5 +55,6 @@ export declare class Sprite {
 export declare class SpriteSheet {
     url: string;
     image?: any;
+    imageEffects?: any[];
     sprites: Sprite[];
 }

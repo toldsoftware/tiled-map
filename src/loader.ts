@@ -42,16 +42,19 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
             map.tiles[i] = map.tiles[i] || [];
             let tile = map.tiles[i][j] = map.tiles[i][j] || {
                 stack: [],
-                x,
-                y,
+                x: xBottomCenter - tileWidth * 0.5,
+                y: yBottomCenter - tileHeight,
                 zIndex
             };
 
             tile.stack.push({
+                tile,
                 sprite: s,
                 x,
                 y,
-                zIndex
+                zIndex,
+                opacity: 1,
+                shouldHighlight: false
             });
         }
     }
@@ -80,10 +83,13 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
             };
 
             tile.stack[0] = {
+                tile,
                 sprite: s,
                 x,
                 y,
-                zIndex
+                zIndex,
+                opacity: 1,
+                shouldHighlight: false
             };
 
             iSprite++;
