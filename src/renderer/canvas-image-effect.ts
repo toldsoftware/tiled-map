@@ -19,32 +19,47 @@ export function getImageEffect(spriteSheet: SpriteSheet, kind: ImageEffectKind) 
         // Placeholder
         spriteSheet.imageEffects[kind] = 0;
         setTimeout(() => {
-            console.log('Create Image Effect START kind=', kind);
-            switch (kind) {
-                case ImageEffectKind.Dark:
-                    resultImage = createImageEffect_dark(spriteSheet.image);
-                    break;
-                case ImageEffectKind.RgbRotate:
-                    resultImage = createImageEffect_rgbRotate(spriteSheet.image);
-                    break;
-                case ImageEffectKind.RgbRotate2:
-                    resultImage = createImageEffect_rgbRotate2(spriteSheet.image);
-                    break;
-                case ImageEffectKind.Light:
-                default:
-                    resultImage = createImageEffect_light(spriteSheet.image);
-                    break;
-            }
-            spriteSheet.imageEffects[kind] = resultImage;
-            console.log('Create Image Effect END kind=', kind);
+            (async () => {
+                console.log('Create Image Effect START kind=', kind);
+                switch (kind) {
+                    case ImageEffectKind.Dark:
+                        resultImage = await createImageEffect_dark(spriteSheet.image);
+                        break;
+                    case ImageEffectKind.RgbRotate:
+                        resultImage = await createImageEffect_rgbRotate(spriteSheet.image);
+                        break;
+                    case ImageEffectKind.RgbRotate2:
+                        resultImage = await createImageEffect_rgbRotate2(spriteSheet.image);
+                        break;
+                    case ImageEffectKind.Light:
+                    default:
+                        resultImage = await createImageEffect_light(spriteSheet.image);
+                        break;
+                }
+                spriteSheet.imageEffects[kind] = resultImage;
+                console.log('Create Image Effect END kind=', kind);
+            })().then();
         });
     }
 
     return resultImage || spriteSheet.image;
 }
 
+const CHUNK_SIZE = 100 * 1000;
+let pauseCount = 0;
+export function pause() {
+    let p = pauseCount++;
+    // console.log('pause SETUP', p);
+    return new Promise(resolve => {
+        // console.log('pause START', p);
+        setTimeout(() => {
+            resolve();
+            // console.log('pause END', p);
+        });
+    });
+}
 
-export function createImageEffect_dark(image: HTMLImageElement | HTMLCanvasElement) {
+export async function createImageEffect_dark(image: HTMLImageElement | HTMLCanvasElement) {
     let cvs = document.createElement('canvas');
     cvs.width = image.width;
     cvs.height = image.height;
@@ -56,17 +71,21 @@ export function createImageEffect_dark(image: HTMLImageElement | HTMLCanvasEleme
     let imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
     let data = imageData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-        let r = data[i + 0];
-        let g = data[i + 1];
-        let b = data[i + 2];
-        let a = data[i + 3];
+    for (let iMain = 0; iMain < data.length; iMain += CHUNK_SIZE) {
+        for (let i = iMain; i < iMain + CHUNK_SIZE && i < data.length; i += 4) {
+            let r = data[i + 0];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            let a = data[i + 3];
 
-        if (a > 0) {
-            data[i + 0] = r * 0.7;
-            data[i + 1] = g * 0.7;
-            data[i + 2] = b * 0.8;
+            if (a > 0) {
+                data[i + 0] = r * 0.7;
+                data[i + 1] = g * 0.7;
+                data[i + 2] = b * 0.8;
+            }
         }
+
+        await pause();
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -74,7 +93,7 @@ export function createImageEffect_dark(image: HTMLImageElement | HTMLCanvasEleme
     return cvs;
 }
 
-export function createImageEffect_light(image: HTMLImageElement | HTMLCanvasElement) {
+export async function createImageEffect_light(image: HTMLImageElement | HTMLCanvasElement) {
     let cvs = document.createElement('canvas');
     cvs.width = image.width;
     cvs.height = image.height;
@@ -86,17 +105,22 @@ export function createImageEffect_light(image: HTMLImageElement | HTMLCanvasElem
     let imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
     let data = imageData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-        let r = data[i + 0];
-        let g = data[i + 1];
-        let b = data[i + 2];
-        let a = data[i + 3];
+    for (let iMain = 0; iMain < data.length; iMain += CHUNK_SIZE) {
+        for (let i = iMain; i < iMain + CHUNK_SIZE && i < data.length; i += 4) {
+            let r = data[i + 0];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            let a = data[i + 3];
 
-        if (a > 0) {
-            data[i + 0] = r * 0.6 + 225 * 0.4;
-            data[i + 1] = g * 0.6 + 225 * 0.4;
-            data[i + 2] = b * 0.4 + 225 * 0.6;
+            if (a > 0) {
+                data[i + 0] = r * 0.6 + 225 * 0.4;
+                data[i + 1] = g * 0.6 + 225 * 0.4;
+                data[i + 2] = b * 0.4 + 225 * 0.6;
+            }
+
         }
+
+        await pause();
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -105,7 +129,7 @@ export function createImageEffect_light(image: HTMLImageElement | HTMLCanvasElem
 }
 
 
-export function createImageEffect_rgbRotate(image: HTMLImageElement | HTMLCanvasElement) {
+export async function createImageEffect_rgbRotate(image: HTMLImageElement | HTMLCanvasElement) {
     let cvs = document.createElement('canvas');
     cvs.width = image.width;
     cvs.height = image.height;
@@ -117,17 +141,22 @@ export function createImageEffect_rgbRotate(image: HTMLImageElement | HTMLCanvas
     let imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
     let data = imageData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-        let r = data[i + 0];
-        let g = data[i + 1];
-        let b = data[i + 2];
-        let a = data[i + 3];
+    for (let iMain = 0; iMain < data.length; iMain += CHUNK_SIZE) {
+        for (let i = iMain; i < iMain + CHUNK_SIZE && i < data.length; i += 4) {
+            let r = data[i + 0];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            let a = data[i + 3];
 
-        if (a > 0) {
-            data[i + 0] = g;
-            data[i + 1] = b;
-            data[i + 2] = r;
+            if (a > 0) {
+                data[i + 0] = g;
+                data[i + 1] = b;
+                data[i + 2] = r;
+            }
+
         }
+
+        await pause();
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -135,7 +164,7 @@ export function createImageEffect_rgbRotate(image: HTMLImageElement | HTMLCanvas
     return cvs;
 }
 
-export function createImageEffect_rgbRotate2(image: HTMLImageElement | HTMLCanvasElement) {
+export async function createImageEffect_rgbRotate2(image: HTMLImageElement | HTMLCanvasElement) {
     let cvs = document.createElement('canvas');
     cvs.width = image.width;
     cvs.height = image.height;
@@ -147,17 +176,22 @@ export function createImageEffect_rgbRotate2(image: HTMLImageElement | HTMLCanva
     let imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
     let data = imageData.data;
 
-    for (let i = 0; i < data.length; i += 4) {
-        let r = data[i + 0];
-        let g = data[i + 1];
-        let b = data[i + 2];
-        let a = data[i + 3];
+    for (let iMain = 0; iMain < data.length; iMain += CHUNK_SIZE) {
+        for (let i = iMain; i < iMain + CHUNK_SIZE && i < data.length; i += 4) {
+            let r = data[i + 0];
+            let g = data[i + 1];
+            let b = data[i + 2];
+            let a = data[i + 3];
 
-        if (a > 0) {
-            data[i + 0] = b;
-            data[i + 1] = r;
-            data[i + 2] = g;
+            if (a > 0) {
+                data[i + 0] = b;
+                data[i + 1] = r;
+                data[i + 2] = g;
+            }
+
         }
+
+        await pause();
     }
 
     ctx.putImageData(imageData, 0, 0);

@@ -25,3 +25,12 @@
 - Add Cloning
 - Add Moving
 - Add Serializing
+
+## 9:00-11:00
+
+- Improve Highlighting
+
+##
+
+- Add Piece Selection
+
