@@ -32,6 +32,8 @@ export abstract class Renderer {
             }
         }
 
+        visibleItems.push(...map.tileItems_floating);
+
         // for (let j = -10; j < 10; j++) {
         // }
 

@@ -49,8 +49,8 @@
 	var tiled_map_1 = __webpack_require__(2);
 	var kenney_xml_loader_1 = __webpack_require__(3);
 	var canvas_renderer_1 = __webpack_require__(6);
-	var loader_1 = __webpack_require__(8);
-	var user_input_1 = __webpack_require__(16);
+	var loader_1 = __webpack_require__(10);
+	var user_input_1 = __webpack_require__(8);
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
@@ -595,8 +595,8 @@
 	"use strict";
 	var tslib_1 = __webpack_require__(1);
 	var renderer_1 = __webpack_require__(7);
-	var user_input_1 = __webpack_require__(16);
-	var canvas_image_effect_1 = __webpack_require__(17);
+	var user_input_1 = __webpack_require__(8);
+	var canvas_image_effect_1 = __webpack_require__(9);
 	var CanvasRenderer = (function (_super) {
 	    tslib_1.__extends(CanvasRenderer, _super);
 	    function CanvasRenderer(host) {
@@ -689,23 +689,19 @@
 	            }
 	            ctx.globalAlpha = 1;
 	        }
-	        // // Draw Highlight above others
-	        // for (let i = 0; i < sprites.length; i++) {
-	        //     let s = sprites[i];
-	        //     let x = (s.x - viewPort.xLeft) * xScale;
-	        //     let y = (s.y - viewPort.yTop) * yScale;
-	        //     let w = s.sprite.width * xScale;
-	        //     let h = s.sprite.height * yScale;
-	        //     if (s.shouldHighlight) {
-	        //         // ctx.globalAlpha = 0.25;
-	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
-	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
-	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
-	        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
-	        //         // ctx.globalAlpha = 1;
-	        //         ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
-	        //     }
-	        // }
+	        // Draw Highlight above others
+	        for (var i = 0; i < sprites.length; i++) {
+	            var s = sprites[i];
+	            var x = (s.x - viewPort.xLeft) * xScale;
+	            var y = (s.y - viewPort.yTop) * yScale;
+	            var w = s.sprite.width * xScale;
+	            var h = s.sprite.height * yScale;
+	            if (s.shouldBringToFront) {
+	                ctx.globalAlpha = 0.25;
+	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
+	                ctx.globalAlpha = 1;
+	            }
+	        }
 	    };
 	    CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, viewPort) {
 	        var cvs = this.canvas;
@@ -754,6 +750,7 @@
 	                }
 	            }
 	        }
+	        visibleItems.push.apply(visibleItems, map.tileItems_floating);
 	        // for (let j = -10; j < 10; j++) {
 	        // }
 	        visibleItems.sort(function (a, b) { return a.zIndex - b.zIndex; });
@@ -785,7 +782,501 @@
 
 	"use strict";
 	var tslib_1 = __webpack_require__(1);
-	var src_1 = __webpack_require__(9);
+	var UserInputType;
+	(function (UserInputType) {
+	    UserInputType[UserInputType["Move"] = 0] = "Move";
+	    UserInputType[UserInputType["Start"] = 1] = "Start";
+	    UserInputType[UserInputType["Drag"] = 2] = "Drag";
+	    UserInputType[UserInputType["End"] = 3] = "End";
+	})(UserInputType = exports.UserInputType || (exports.UserInputType = {}));
+	function getTilesAtInput(map, input) {
+	    if (input.tilesUnder) {
+	        return { tilesUnder: input.tilesUnder, tileItemsUnder: input.tileItemsUnder };
+	    }
+	    var tilesUnder = [];
+	    var tileItemsUnder = [];
+	    var x = input.x;
+	    var y = input.y;
+	    var tw = map.tileWidth;
+	    var th = map.tileHeight;
+	    for (var i = 0; i < map.tiles.length; i++) {
+	        var column = map.tiles[i];
+	        for (var j = 0; j < column.length; j++) {
+	            var tile = column[j];
+	            var isTileUnder = false;
+	            if (tile.x <= x && tile.x + tw >= x
+	                && tile.y <= y && tile.y + th >= y) {
+	                tilesUnder.push(tile);
+	                isTileUnder = true;
+	            }
+	            for (var k = 0; k < tile.stack.length; k++) {
+	                var tileItem = tile.stack[k];
+	                if (tileItem.x <= x && tileItem.x + tileItem.sprite.width >= x
+	                    && tileItem.y <= y && tileItem.y + tileItem.sprite.height >= y) {
+	                    tileItemsUnder.push(tileItem);
+	                }
+	            }
+	        }
+	    }
+	    // console.log('getTilesAtInput', tilesUnder, tileItemsUnder);
+	    input.tilesUnder = tilesUnder;
+	    input.tileItemsUnder = tileItemsUnder;
+	    return { tilesUnder: tilesUnder, tileItemsUnder: tileItemsUnder };
+	}
+	exports.getTilesAtInput = getTilesAtInput;
+	function getNearestTile(map, tilesUnder, input) {
+	    if (tilesUnder.length === 0) {
+	        return null;
+	    }
+	    return tilesUnder.map(function (t) { return ({
+	        t: t,
+	        dx: t.x + map.tileWidth * 0.5 - input.x,
+	        dy: t.y + map.tileHeight * 0.5 - input.y
+	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
+	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
+	        .t;
+	}
+	exports.getNearestTile = getNearestTile;
+	var NearestTileMode;
+	(function (NearestTileMode) {
+	    NearestTileMode[NearestTileMode["AnyTop"] = 0] = "AnyTop";
+	    NearestTileMode[NearestTileMode["TopExceptBottom"] = 1] = "TopExceptBottom";
+	    NearestTileMode[NearestTileMode["TopIsBottom"] = 2] = "TopIsBottom";
+	    NearestTileMode[NearestTileMode["Any"] = 3] = "Any";
+	})(NearestTileMode = exports.NearestTileMode || (exports.NearestTileMode = {}));
+	function getNearestTileItem(tileItemsUnder, input, mode) {
+	    if (mode === void 0) { mode = NearestTileMode.AnyTop; }
+	    var items = tileItemsUnder;
+	    if (mode !== NearestTileMode.Any) {
+	        items = items
+	            .filter(function (t) { return t.tile.stack[t.tile.stack.length - 1] === t; });
+	    }
+	    switch (mode) {
+	        case NearestTileMode.TopExceptBottom:
+	            items = items.filter(function (t) { return t.tile.stack.length > 1; });
+	            break;
+	        case NearestTileMode.TopIsBottom:
+	            items = items.filter(function (t) { return t.tile.stack.length === 1; });
+	            break;
+	    }
+	    if (items.length === 0) {
+	        return null;
+	    }
+	    return items
+	        .map(function (t) { return ({
+	        t: t,
+	        dx: t.x + t.sprite.xBottomCenter_fromTopLeft - input.x,
+	        dy: t.y + t.sprite.yBottomCenter_fromTopLeft - t.sprite.height * 0.5 - input.y
+	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
+	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
+	        .t;
+	}
+	exports.getNearestTileItem = getNearestTileItem;
+	var highlightedTileItems;
+	var TileHighlighter = (function () {
+	    function TileHighlighter(map) {
+	        this.map = map;
+	        this.oldTilesUnder = [];
+	        this.oldTileItemsUnder = [];
+	    }
+	    TileHighlighter.prototype.handleInput = function (input) {
+	        // if (input.type === UserInputType.Move) { return; }
+	        // console.log('TileMover.handleInput input=', input);
+	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	        for (var _i = 0, _b = this.oldTileItemsUnder; _i < _b.length; _i++) {
+	            var t = _b[_i];
+	            t.shouldHighlight = false;
+	            t.shouldBringToFront = false;
+	        }
+	        this.oldTileItemsUnder = [];
+	        highlightedTileItems = [];
+	        // for (let tile of this.oldTilesUnder) {
+	        //     for (let t of tile.stack) {
+	        //         t.shouldHighlight = false;
+	        //     }
+	        // }
+	        if (movingTileItem) {
+	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
+	            var exceptMoving = tileItemsUnder.filter(function (t) { return t !== movingTileItem; });
+	            var nearestTileItem = getNearestTileItem(exceptMoving, input);
+	            var n = [];
+	            if (nearestTile) {
+	                n.push.apply(n, nearestTile.stack);
+	            }
+	            if (nearestTileItem) {
+	                n.push(nearestTileItem);
+	            }
+	            var nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
+	            if (nearestOfAll) {
+	                var stack = nearestOfAll.tile.stack;
+	                var k = 0;
+	                for (var _c = 0, stack_1 = stack; _c < stack_1.length; _c++) {
+	                    var t = stack_1[_c];
+	                    t.shouldHighlight = true;
+	                    t.shouldBringToFront = true;
+	                    // t.shouldBringToFront = k > 0;
+	                    this.oldTileItemsUnder.push(t);
+	                    highlightedTileItems.push(t);
+	                    k++;
+	                }
+	            }
+	        }
+	        else {
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+	            if (nearestTileItem) {
+	                var stack = nearestTileItem.tile.stack;
+	                var k = 0;
+	                for (var _d = 0, stack_2 = stack; _d < stack_2.length; _d++) {
+	                    var t = stack_2[_d];
+	                    t.shouldHighlight = true;
+	                    t.shouldBringToFront = k > 0;
+	                    this.oldTileItemsUnder.push(t);
+	                    highlightedTileItems.push(t);
+	                    k++;
+	                }
+	            }
+	        }
+	    };
+	    return TileHighlighter;
+	}());
+	exports.TileHighlighter = TileHighlighter;
+	var movingTileItem;
+	var TileMover = (function () {
+	    function TileMover(map, shouldClone) {
+	        this.map = map;
+	        this.shouldClone = shouldClone;
+	    }
+	    TileMover.prototype.handleInput = function (input) {
+	        var _this = this;
+	        if (input.type === UserInputType.Move) {
+	            return;
+	        }
+	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.activeTileItem) {
+	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+	            if (!nearestTileItem) {
+	                return;
+	            }
+	            if (this.shouldClone) {
+	                nearestTileItem = tslib_1.__assign({}, nearestTileItem);
+	                // nearestTileItem.tile.stack.push(nearestTileItem);
+	                this.map.tileItems_floating.push(nearestTileItem);
+	                nearestTileItem.tile = null;
+	            }
+	            this.activeTileItem = nearestTileItem;
+	            this.dxStart = this.activeTileItem.x - input.x;
+	            this.dyStart = this.activeTileItem.y - input.y;
+	            this.xStart = this.activeTileItem.x;
+	            this.yStart = this.activeTileItem.y;
+	            this.zStart = this.activeTileItem.zIndex;
+	        }
+	        this.activeTileItem.x = input.x + this.dxStart;
+	        this.activeTileItem.y = input.y + this.dyStart;
+	        this.activeTileItem.shouldHighlight = true;
+	        this.activeTileItem.zIndex = 10000;
+	        this.activeTileItem.opacity = 0.5;
+	        if (input.type === UserInputType.End) {
+	            // Move Stack
+	            var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
+	            var oldTile_1 = this.activeTileItem.tile;
+	            console.log('Move Stack', oldTile_1, this.activeTileItem, tilesUnder);
+	            if (oldTile_1 && tilesUnder.some(function (t) { return t === oldTile_1; })) {
+	                // Return to old position
+	                this.activeTileItem.x = this.xStart;
+	                this.activeTileItem.y = this.yStart;
+	                this.activeTileItem.zIndex = this.zStart;
+	            }
+	            else {
+	                // Move to new stack
+	                // let newTile = getNearestTile(this.map, tilesUnder, input);
+	                var newTileItem = getNearestTileItem(highlightedTileItems.filter(function (x) { return x !== _this.activeTileItem; }), input);
+	                if (newTileItem == null) {
+	                    return;
+	                }
+	                var newTile = newTileItem.tile;
+	                // Calculate New position                
+	                this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
+	                this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
+	                this.activeTileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
+	                this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
+	                // Change stack
+	                if (oldTile_1) {
+	                    oldTile_1.stack.splice(oldTile_1.stack.indexOf(this.activeTileItem), 1);
+	                }
+	                newTile.stack.push(this.activeTileItem);
+	                this.activeTileItem.tile = newTile;
+	                var i = this.map.tileItems_floating.indexOf(this.activeTileItem);
+	                if (i >= 0) {
+	                    this.map.tileItems_floating.splice(i, 1);
+	                }
+	            }
+	            this.activeTileItem.shouldHighlight = false;
+	            this.activeTileItem.opacity = 1;
+	            this.activeTileItem = null;
+	        }
+	        movingTileItem = this.activeTileItem;
+	    };
+	    return TileMover;
+	}());
+	exports.TileMover = TileMover;
+	var ViewportMover = (function () {
+	    function ViewportMover(map, viewPort) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	    }
+	    ViewportMover.prototype.handleInput = function (input) {
+	        if (input.type === UserInputType.Move) {
+	            return;
+	        }
+	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.isDragging) {
+	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopIsBottom);
+	            if (!nearestTileItem) {
+	                return;
+	            }
+	            this.isDragging = true;
+	            this.xStart = input.x;
+	            this.yStart = input.y;
+	            this.xLeftStart = this.viewPort.xLeft;
+	            this.yTopStart = this.viewPort.yTop;
+	        }
+	        var dx = input.x - this.xStart;
+	        var dy = input.y - this.yStart;
+	        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
+	        var w = this.viewPort.xRight - this.viewPort.xLeft;
+	        var h = this.viewPort.yBottom - this.viewPort.yTop;
+	        // Reduce jumping
+	        // dx = Math.max(-2, Math.min(1, dx));
+	        // dy = Math.max(-1, Math.min(1, dy));
+	        // dx = Math.round(dx);
+	        // dy = Math.round(dy);
+	        this.viewPort.xLeft = this.xLeftStart - dx;
+	        this.viewPort.yTop = this.yTopStart - dy;
+	        this.viewPort.xRight = this.viewPort.xLeft + w;
+	        this.viewPort.yBottom = this.viewPort.yTop + h;
+	        if (input.type === UserInputType.End) {
+	            this.isDragging = false;
+	        }
+	    };
+	    return ViewportMover;
+	}());
+	exports.ViewportMover = ViewportMover;
+	var ViewportScroller = (function () {
+	    function ViewportScroller(map, viewPort) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	        this.speed = 20;
+	    }
+	    ViewportScroller.prototype.handleInput = function (input) {
+	        var _this = this;
+	        var r = 0.1;
+	        var dx = 0;
+	        var dy = 0;
+	        if (input.u < r && input.u > 0) {
+	            dx = -1 * Math.pow(1 - (input.u / r), 2);
+	        }
+	        if (input.u > 1 - r && input.u < 1) {
+	            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
+	        }
+	        if (input.v < r && input.v > 0) {
+	            dy = -1 * Math.pow(1 - (input.v / r), 2);
+	        }
+	        if (input.v > 1 - r && input.v < 1) {
+	            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
+	        }
+	        this.dx = dx;
+	        this.dy = dy;
+	        // console.log(dx, dy);
+	        if (dx === 0 && dy === 0) {
+	            return;
+	        }
+	        cancelAnimationFrame(this.animationId);
+	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
+	    };
+	    ViewportScroller.prototype.stop = function () {
+	        this.dx = 0;
+	        this.dy = 0;
+	    };
+	    ViewportScroller.prototype.animate = function () {
+	        var _this = this;
+	        if (this.dx === 0 && this.dy === 0) {
+	            return;
+	        }
+	        var w = this.viewPort.xRight - this.viewPort.xLeft;
+	        var h = this.viewPort.yBottom - this.viewPort.yTop;
+	        this.viewPort.xLeft += this.dx * this.speed;
+	        this.viewPort.yTop += this.dy * this.speed;
+	        this.viewPort.xRight = this.viewPort.xLeft + w;
+	        this.viewPort.yBottom = this.viewPort.yTop + h;
+	        cancelAnimationFrame(this.animationId);
+	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
+	    };
+	    return ViewportScroller;
+	}());
+	exports.ViewportScroller = ViewportScroller;
+
+
+/***/ },
+/* 9 */
+/***/ function(module, exports) {
+
+	"use strict";
+	var DEBUG = false;
+	var ImageEffectKind;
+	(function (ImageEffectKind) {
+	    ImageEffectKind[ImageEffectKind["Light"] = 0] = "Light";
+	    ImageEffectKind[ImageEffectKind["Dark"] = 1] = "Dark";
+	    ImageEffectKind[ImageEffectKind["RgbRotate"] = 2] = "RgbRotate";
+	    ImageEffectKind[ImageEffectKind["RgbRotate2"] = 3] = "RgbRotate2";
+	})(ImageEffectKind = exports.ImageEffectKind || (exports.ImageEffectKind = {}));
+	function getImageEffect(spriteSheet, kind) {
+	    if (spriteSheet.image == null || spriteSheet.image.width <= 0) {
+	        return null;
+	    }
+	    spriteSheet.imageEffects = spriteSheet.imageEffects || [];
+	    var resultImage = spriteSheet.imageEffects[kind];
+	    if (resultImage == null) {
+	        // Placeholder
+	        spriteSheet.imageEffects[kind] = 0;
+	        setTimeout(function () {
+	            console.log('Create Image Effect START kind=', kind);
+	            switch (kind) {
+	                case ImageEffectKind.Dark:
+	                    resultImage = createImageEffect_dark(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.RgbRotate:
+	                    resultImage = createImageEffect_rgbRotate(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.RgbRotate2:
+	                    resultImage = createImageEffect_rgbRotate2(spriteSheet.image);
+	                    break;
+	                case ImageEffectKind.Light:
+	                default:
+	                    resultImage = createImageEffect_light(spriteSheet.image);
+	                    break;
+	            }
+	            spriteSheet.imageEffects[kind] = resultImage;
+	            console.log('Create Image Effect END kind=', kind);
+	        });
+	    }
+	    return resultImage || spriteSheet.image;
+	}
+	exports.getImageEffect = getImageEffect;
+	function createImageEffect_dark(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = r * 0.7;
+	            data[i + 1] = g * 0.7;
+	            data[i + 2] = b * 0.8;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_dark = createImageEffect_dark;
+	function createImageEffect_light(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = r * 0.6 + 225 * 0.4;
+	            data[i + 1] = g * 0.6 + 225 * 0.4;
+	            data[i + 2] = b * 0.4 + 225 * 0.6;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_light = createImageEffect_light;
+	function createImageEffect_rgbRotate(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = g;
+	            data[i + 1] = b;
+	            data[i + 2] = r;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_rgbRotate = createImageEffect_rgbRotate;
+	function createImageEffect_rgbRotate2(image) {
+	    var cvs = document.createElement('canvas');
+	    cvs.width = image.width;
+	    cvs.height = image.height;
+	    if (DEBUG) {
+	        document.body.appendChild(cvs);
+	    }
+	    var ctx = cvs.getContext('2d');
+	    ctx.drawImage(image, 0, 0, image.width, image.height);
+	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+	    var data = imageData.data;
+	    for (var i = 0; i < data.length; i += 4) {
+	        var r = data[i + 0];
+	        var g = data[i + 1];
+	        var b = data[i + 2];
+	        var a = data[i + 3];
+	        if (a > 0) {
+	            data[i + 0] = b;
+	            data[i + 1] = r;
+	            data[i + 2] = g;
+	        }
+	    }
+	    ctx.putImageData(imageData, 0, 0);
+	    return cvs;
+	}
+	exports.createImageEffect_rgbRotate2 = createImageEffect_rgbRotate2;
+
+
+/***/ },
+/* 10 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	var tslib_1 = __webpack_require__(1);
+	var src_1 = __webpack_require__(11);
 	var tiled_map_1 = __webpack_require__(2);
 	src_1.setupBrowser();
 	var http = src_1.Platform.http();
@@ -802,6 +1293,7 @@
 	                        tileWidth: tileWidth,
 	                        tileHeight: tileHeight,
 	                        tiles: [],
+	                        tileItems_floating: [],
 	                        defaultSprite: null
 	                    };
 	                    iZero = map.iZero;
@@ -833,7 +1325,8 @@
 	                                y: y,
 	                                zIndex: zIndex,
 	                                opacity: 1,
-	                                shouldHighlight: false
+	                                shouldHighlight: false,
+	                                shouldBringToFront: false
 	                            });
 	                        }
 	                    }
@@ -861,7 +1354,8 @@
 	                                y: y - defaultSprite.stackHeight,
 	                                zIndex: zIndex + 0.1,
 	                                opacity: 1,
-	                                shouldHighlight: false
+	                                shouldHighlight: false,
+	                                shouldBringToFront: false
 	                            });
 	                            iSprite++;
 	                            if (iSprite >= spriteCount) {
@@ -902,19 +1396,19 @@
 
 
 /***/ },
-/* 9 */
+/* 11 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	function __export(m) {
 	    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 	}
-	__export(__webpack_require__(10));
-	__export(__webpack_require__(11));
+	__export(__webpack_require__(12));
+	__export(__webpack_require__(13));
 	//# sourceMappingURL=index.js.map
 
 /***/ },
-/* 10 */
+/* 12 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -928,7 +1422,7 @@
 	//# sourceMappingURL=platform.js.map
 
 /***/ },
-/* 11 */
+/* 13 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
@@ -967,11 +1461,11 @@
 	        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
 	    }
 	};
-	var P = __webpack_require__(10);
-	var browser_ajax_1 = __webpack_require__(12);
+	var P = __webpack_require__(12);
+	var browser_ajax_1 = __webpack_require__(14);
 	function setupBrowser() {
 	    P.Platform.provider = new BrowserPlatformProvider();
-	    Promise = __webpack_require__(13).Promise;
+	    Promise = __webpack_require__(15).Promise;
 	}
 	exports.setupBrowser = setupBrowser;
 	var BrowserPlatformProvider = (function () {
@@ -1021,7 +1515,7 @@
 	//# sourceMappingURL=browser.js.map
 
 /***/ },
-/* 12 */
+/* 14 */
 /***/ function(module, exports) {
 
 	// Vanilla Ajax Requests
@@ -1191,7 +1685,7 @@
 	//# sourceMappingURL=browser-ajax.js.map
 
 /***/ },
-/* 13 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var require;/* WEBPACK VAR INJECTION */(function(process, global) {/*!
@@ -1330,7 +1824,7 @@
 	function attemptVertx() {
 	  try {
 	    var r = require;
-	    var vertx = __webpack_require__(15);
+	    var vertx = __webpack_require__(17);
 	    vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	    return useVertxTimer();
 	  } catch (e) {
@@ -2351,10 +2845,10 @@
 	
 	})));
 	//# sourceMappingURL=es6-promise.map
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(14), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(16), (function() { return this; }())))
 
 /***/ },
-/* 14 */
+/* 16 */
 /***/ function(module, exports) {
 
 	// shim for using process in browser
@@ -2540,456 +3034,10 @@
 
 
 /***/ },
-/* 15 */
-/***/ function(module, exports) {
-
-	/* (ignored) */
-
-/***/ },
-/* 16 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var tslib_1 = __webpack_require__(1);
-	var UserInputType;
-	(function (UserInputType) {
-	    UserInputType[UserInputType["Move"] = 0] = "Move";
-	    UserInputType[UserInputType["Start"] = 1] = "Start";
-	    UserInputType[UserInputType["Drag"] = 2] = "Drag";
-	    UserInputType[UserInputType["End"] = 3] = "End";
-	})(UserInputType = exports.UserInputType || (exports.UserInputType = {}));
-	function getTilesAtInput(map, input) {
-	    if (input.tilesUnder) {
-	        return { tilesUnder: input.tilesUnder, tileItemsUnder: input.tileItemsUnder };
-	    }
-	    var tilesUnder = [];
-	    var tileItemsUnder = [];
-	    var x = input.x;
-	    var y = input.y;
-	    var tw = map.tileWidth;
-	    var th = map.tileHeight;
-	    for (var i = 0; i < map.tiles.length; i++) {
-	        var column = map.tiles[i];
-	        for (var j = 0; j < column.length; j++) {
-	            var tile = column[j];
-	            var isTileUnder = false;
-	            if (tile.x <= x && tile.x + tw >= x
-	                && tile.y <= y && tile.y + th >= y) {
-	                tilesUnder.push(tile);
-	                isTileUnder = true;
-	            }
-	            for (var k = 0; k < tile.stack.length; k++) {
-	                var tileItem = tile.stack[k];
-	                if (tileItem.x <= x && tileItem.x + tileItem.sprite.width >= x
-	                    && tileItem.y <= y && tileItem.y + tileItem.sprite.height >= y) {
-	                    tileItemsUnder.push(tileItem);
-	                }
-	            }
-	        }
-	    }
-	    // console.log('getTilesAtInput', tilesUnder, tileItemsUnder);
-	    input.tilesUnder = tilesUnder;
-	    input.tileItemsUnder = tileItemsUnder;
-	    return { tilesUnder: tilesUnder, tileItemsUnder: tileItemsUnder };
-	}
-	exports.getTilesAtInput = getTilesAtInput;
-	function getNearestTile(map, tilesUnder, input) {
-	    if (tilesUnder.length === 0) {
-	        return null;
-	    }
-	    return tilesUnder.map(function (t) { return ({
-	        t: t,
-	        dx: t.x + map.tileWidth * 0.5 - input.x,
-	        dy: t.y + map.tileHeight * 0.5 - input.y
-	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
-	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
-	        .t;
-	}
-	exports.getNearestTile = getNearestTile;
-	function getNearestTileItem(tileItemsUnder, input, shouldIgnoreBottom, shouldIgnoreAboveBottom) {
-	    if (shouldIgnoreBottom === void 0) { shouldIgnoreBottom = false; }
-	    if (shouldIgnoreAboveBottom === void 0) { shouldIgnoreAboveBottom = false; }
-	    var topTiles = tileItemsUnder
-	        .filter(function (t) { return t.tile.stack[t.tile.stack.length - 1] === t; });
-	    if (shouldIgnoreBottom) {
-	        topTiles = topTiles.filter(function (t) { return t.tile.stack.length > 1; });
-	    }
-	    else if (shouldIgnoreAboveBottom) {
-	        topTiles = topTiles.filter(function (t) { return t.tile.stack.length === 1; });
-	    }
-	    if (topTiles.length === 0) {
-	        return null;
-	    }
-	    return topTiles
-	        .map(function (t) { return ({
-	        t: t,
-	        dx: t.x + t.sprite.xBottomCenter_fromTopLeft - input.x,
-	        dy: t.y + t.sprite.yBottomCenter_fromTopLeft - t.sprite.height * 0.5 - input.y
-	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
-	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
-	        .t;
-	}
-	exports.getNearestTileItem = getNearestTileItem;
-	var TileHighlighter = (function () {
-	    function TileHighlighter(map) {
-	        this.map = map;
-	        this.oldTilesUnder = [];
-	        this.oldTileItemsUnder = [];
-	    }
-	    TileHighlighter.prototype.handleInput = function (input) {
-	        // if (input.type === UserInputType.Move) { return; }
-	        // console.log('TileMover.handleInput input=', input);
-	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	        for (var _i = 0, _b = this.oldTileItemsUnder; _i < _b.length; _i++) {
-	            var t = _b[_i];
-	            t.shouldHighlight = false;
-	        }
-	        // for (let tile of this.oldTilesUnder) {
-	        //     for (let t of tile.stack) {
-	        //         t.shouldHighlight = false;
-	        //     }
-	        // }
-	        if (movingTileItem) {
-	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
-	            if (nearestTile) {
-	                for (var _c = 0, _d = nearestTile.stack; _c < _d.length; _c++) {
-	                    var t = _d[_c];
-	                    t.shouldHighlight = true;
-	                    this.oldTileItemsUnder.push(t);
-	                }
-	            }
-	        }
-	        else {
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
-	            if (nearestTileItem) {
-	                nearestTileItem.shouldHighlight = true;
-	                this.oldTileItemsUnder = [nearestTileItem];
-	            }
-	        }
-	    };
-	    return TileHighlighter;
-	}());
-	exports.TileHighlighter = TileHighlighter;
-	var movingTileItem;
-	var TileMover = (function () {
-	    function TileMover(map, shouldClone) {
-	        this.map = map;
-	        this.shouldClone = shouldClone;
-	    }
-	    TileMover.prototype.handleInput = function (input) {
-	        if (input.type === UserInputType.Move) {
-	            return;
-	        }
-	        // console.log('TileMover.handleInput input=', input);
-	        if (!this.activeTileItem) {
-	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
-	            if (!nearestTileItem) {
-	                return;
-	            }
-	            if (this.shouldClone) {
-	                nearestTileItem = tslib_1.__assign({}, nearestTileItem);
-	                nearestTileItem.tile.stack.push(nearestTileItem);
-	            }
-	            this.activeTileItem = nearestTileItem;
-	            this.dxStart = this.activeTileItem.x - input.x;
-	            this.dyStart = this.activeTileItem.y - input.y;
-	            this.xStart = this.activeTileItem.x;
-	            this.yStart = this.activeTileItem.y;
-	            this.zStart = this.activeTileItem.zIndex;
-	        }
-	        this.activeTileItem.x = input.x + this.dxStart;
-	        this.activeTileItem.y = input.y + this.dyStart;
-	        this.activeTileItem.shouldHighlight = true;
-	        this.activeTileItem.zIndex = 10000;
-	        this.activeTileItem.opacity = 0.5;
-	        if (input.type === UserInputType.End) {
-	            // Move Stack
-	            var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
-	            var oldTile_1 = this.activeTileItem.tile;
-	            console.log('Move Stack', oldTile_1, this.activeTileItem, tilesUnder);
-	            if (oldTile_1 && tilesUnder.some(function (t) { return t === oldTile_1; })) {
-	                // Return to old position
-	                this.activeTileItem.x = this.xStart;
-	                this.activeTileItem.y = this.yStart;
-	                this.activeTileItem.zIndex = this.zStart;
-	            }
-	            else {
-	                // Move to new stack
-	                var newTile = getNearestTile(this.map, tilesUnder, input);
-	                if (newTile == null) {
-	                    return;
-	                }
-	                // Calculate New position                
-	                this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
-	                this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
-	                this.activeTileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
-	                this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
-	                // Change stack
-	                if (oldTile_1) {
-	                    oldTile_1.stack.splice(oldTile_1.stack.indexOf(this.activeTileItem), 1);
-	                }
-	                newTile.stack.push(this.activeTileItem);
-	                this.activeTileItem.tile = newTile;
-	            }
-	            this.activeTileItem.shouldHighlight = false;
-	            this.activeTileItem.opacity = 1;
-	            this.activeTileItem = null;
-	        }
-	        movingTileItem = this.activeTileItem;
-	    };
-	    return TileMover;
-	}());
-	exports.TileMover = TileMover;
-	var ViewportMover = (function () {
-	    function ViewportMover(map, viewPort) {
-	        this.map = map;
-	        this.viewPort = viewPort;
-	    }
-	    ViewportMover.prototype.handleInput = function (input) {
-	        if (input.type === UserInputType.Move) {
-	            return;
-	        }
-	        // console.log('TileMover.handleInput input=', input);
-	        if (!this.isDragging) {
-	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, false, true);
-	            if (!nearestTileItem) {
-	                return;
-	            }
-	            this.isDragging = true;
-	            this.xStart = input.x;
-	            this.yStart = input.y;
-	            this.xLeftStart = this.viewPort.xLeft;
-	            this.yTopStart = this.viewPort.yTop;
-	        }
-	        var dx = input.x - this.xStart;
-	        var dy = input.y - this.yStart;
-	        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
-	        var w = this.viewPort.xRight - this.viewPort.xLeft;
-	        var h = this.viewPort.yBottom - this.viewPort.yTop;
-	        // Reduce jumping
-	        // dx = Math.max(-2, Math.min(1, dx));
-	        // dy = Math.max(-1, Math.min(1, dy));
-	        // dx = Math.round(dx);
-	        // dy = Math.round(dy);
-	        this.viewPort.xLeft = this.xLeftStart - dx;
-	        this.viewPort.yTop = this.yTopStart - dy;
-	        this.viewPort.xRight = this.viewPort.xLeft + w;
-	        this.viewPort.yBottom = this.viewPort.yTop + h;
-	        if (input.type === UserInputType.End) {
-	            this.isDragging = false;
-	        }
-	    };
-	    return ViewportMover;
-	}());
-	exports.ViewportMover = ViewportMover;
-	var ViewportScroller = (function () {
-	    function ViewportScroller(map, viewPort) {
-	        this.map = map;
-	        this.viewPort = viewPort;
-	        this.speed = 20;
-	    }
-	    ViewportScroller.prototype.handleInput = function (input) {
-	        var _this = this;
-	        var r = 0.1;
-	        var dx = 0;
-	        var dy = 0;
-	        if (input.u < r && input.u > 0) {
-	            dx = -1 * Math.pow(1 - (input.u / r), 2);
-	        }
-	        if (input.u > 1 - r && input.u < 1) {
-	            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
-	        }
-	        if (input.v < r && input.v > 0) {
-	            dy = -1 * Math.pow(1 - (input.v / r), 2);
-	        }
-	        if (input.v > 1 - r && input.v < 1) {
-	            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
-	        }
-	        this.dx = dx;
-	        this.dy = dy;
-	        // console.log(dx, dy);
-	        if (dx === 0 && dy === 0) {
-	            return;
-	        }
-	        cancelAnimationFrame(this.animationId);
-	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
-	    };
-	    ViewportScroller.prototype.stop = function () {
-	        this.dx = 0;
-	        this.dy = 0;
-	    };
-	    ViewportScroller.prototype.animate = function () {
-	        var _this = this;
-	        if (this.dx === 0 && this.dy === 0) {
-	            return;
-	        }
-	        var w = this.viewPort.xRight - this.viewPort.xLeft;
-	        var h = this.viewPort.yBottom - this.viewPort.yTop;
-	        this.viewPort.xLeft += this.dx * this.speed;
-	        this.viewPort.yTop += this.dy * this.speed;
-	        this.viewPort.xRight = this.viewPort.xLeft + w;
-	        this.viewPort.yBottom = this.viewPort.yTop + h;
-	        cancelAnimationFrame(this.animationId);
-	        this.animationId = requestAnimationFrame(function () { return _this.animate(); });
-	    };
-	    return ViewportScroller;
-	}());
-	exports.ViewportScroller = ViewportScroller;
-
-
-/***/ },
 /* 17 */
 /***/ function(module, exports) {
 
-	"use strict";
-	var DEBUG = false;
-	var ImageEffectKind;
-	(function (ImageEffectKind) {
-	    ImageEffectKind[ImageEffectKind["Light"] = 0] = "Light";
-	    ImageEffectKind[ImageEffectKind["Dark"] = 1] = "Dark";
-	    ImageEffectKind[ImageEffectKind["RgbRotate"] = 2] = "RgbRotate";
-	    ImageEffectKind[ImageEffectKind["RgbRotate2"] = 3] = "RgbRotate2";
-	})(ImageEffectKind = exports.ImageEffectKind || (exports.ImageEffectKind = {}));
-	function getImageEffect(spriteSheet, kind) {
-	    if (spriteSheet.image == null || spriteSheet.image.width <= 0) {
-	        return null;
-	    }
-	    spriteSheet.imageEffects = spriteSheet.imageEffects || [];
-	    var resultImage = spriteSheet.imageEffects[kind];
-	    if (resultImage == null) {
-	        // Placeholder
-	        spriteSheet.imageEffects[kind] = 0;
-	        setTimeout(function () {
-	            console.log('Create Image Effect START kind=', kind);
-	            switch (kind) {
-	                case ImageEffectKind.Dark:
-	                    resultImage = createImageEffect_dark(spriteSheet.image);
-	                    break;
-	                case ImageEffectKind.RgbRotate:
-	                    resultImage = createImageEffect_rgbRotate(spriteSheet.image);
-	                    break;
-	                case ImageEffectKind.RgbRotate2:
-	                    resultImage = createImageEffect_rgbRotate2(spriteSheet.image);
-	                    break;
-	                case ImageEffectKind.Light:
-	                default:
-	                    resultImage = createImageEffect_light(spriteSheet.image);
-	                    break;
-	            }
-	            spriteSheet.imageEffects[kind] = resultImage;
-	            console.log('Create Image Effect END kind=', kind);
-	        });
-	    }
-	    return resultImage || spriteSheet.image;
-	}
-	exports.getImageEffect = getImageEffect;
-	function createImageEffect_dark(image) {
-	    var cvs = document.createElement('canvas');
-	    cvs.width = image.width;
-	    cvs.height = image.height;
-	    if (DEBUG) {
-	        document.body.appendChild(cvs);
-	    }
-	    var ctx = cvs.getContext('2d');
-	    ctx.drawImage(image, 0, 0, image.width, image.height);
-	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-	    var data = imageData.data;
-	    for (var i = 0; i < data.length; i += 4) {
-	        var r = data[i + 0];
-	        var g = data[i + 1];
-	        var b = data[i + 2];
-	        var a = data[i + 3];
-	        if (a > 0) {
-	            data[i + 0] = r * 0.7;
-	            data[i + 1] = g * 0.7;
-	            data[i + 2] = b * 0.8;
-	        }
-	    }
-	    ctx.putImageData(imageData, 0, 0);
-	    return cvs;
-	}
-	exports.createImageEffect_dark = createImageEffect_dark;
-	function createImageEffect_light(image) {
-	    var cvs = document.createElement('canvas');
-	    cvs.width = image.width;
-	    cvs.height = image.height;
-	    if (DEBUG) {
-	        document.body.appendChild(cvs);
-	    }
-	    var ctx = cvs.getContext('2d');
-	    ctx.drawImage(image, 0, 0, image.width, image.height);
-	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-	    var data = imageData.data;
-	    for (var i = 0; i < data.length; i += 4) {
-	        var r = data[i + 0];
-	        var g = data[i + 1];
-	        var b = data[i + 2];
-	        var a = data[i + 3];
-	        if (a > 0) {
-	            data[i + 0] = r * 0.6 + 225 * 0.4;
-	            data[i + 1] = g * 0.6 + 225 * 0.4;
-	            data[i + 2] = b * 0.4 + 225 * 0.6;
-	        }
-	    }
-	    ctx.putImageData(imageData, 0, 0);
-	    return cvs;
-	}
-	exports.createImageEffect_light = createImageEffect_light;
-	function createImageEffect_rgbRotate(image) {
-	    var cvs = document.createElement('canvas');
-	    cvs.width = image.width;
-	    cvs.height = image.height;
-	    if (DEBUG) {
-	        document.body.appendChild(cvs);
-	    }
-	    var ctx = cvs.getContext('2d');
-	    ctx.drawImage(image, 0, 0, image.width, image.height);
-	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-	    var data = imageData.data;
-	    for (var i = 0; i < data.length; i += 4) {
-	        var r = data[i + 0];
-	        var g = data[i + 1];
-	        var b = data[i + 2];
-	        var a = data[i + 3];
-	        if (a > 0) {
-	            data[i + 0] = g;
-	            data[i + 1] = b;
-	            data[i + 2] = r;
-	        }
-	    }
-	    ctx.putImageData(imageData, 0, 0);
-	    return cvs;
-	}
-	exports.createImageEffect_rgbRotate = createImageEffect_rgbRotate;
-	function createImageEffect_rgbRotate2(image) {
-	    var cvs = document.createElement('canvas');
-	    cvs.width = image.width;
-	    cvs.height = image.height;
-	    if (DEBUG) {
-	        document.body.appendChild(cvs);
-	    }
-	    var ctx = cvs.getContext('2d');
-	    ctx.drawImage(image, 0, 0, image.width, image.height);
-	    var imageData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-	    var data = imageData.data;
-	    for (var i = 0; i < data.length; i += 4) {
-	        var r = data[i + 0];
-	        var g = data[i + 1];
-	        var b = data[i + 2];
-	        var a = data[i + 3];
-	        if (a > 0) {
-	            data[i + 0] = b;
-	            data[i + 1] = r;
-	            data[i + 2] = g;
-	        }
-	    }
-	    ctx.putImageData(imageData, 0, 0);
-	    return cvs;
-	}
-	exports.createImageEffect_rgbRotate2 = createImageEffect_rgbRotate2;
-
+	/* (ignored) */
 
 /***/ }
 /******/ ]);

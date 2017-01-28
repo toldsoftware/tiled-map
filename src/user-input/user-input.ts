@@ -84,22 +84,36 @@ export function getNearestTile(map: Map, tilesUnder: Tile[], input: UserInput) {
         .t;
 }
 
-export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, shouldIgnoreBottom = false, shouldIgnoreAboveBottom = false) {
-    let topTiles = tileItemsUnder
-        // Only if top of stack (and not bottom)
-        .filter(t => t.tile.stack[t.tile.stack.length - 1] === t);
+export enum NearestTileMode {
+    AnyTop,
+    TopExceptBottom,
+    TopIsBottom,
+    Any
+}
 
-    if (shouldIgnoreBottom) {
-        topTiles = topTiles.filter(t => t.tile.stack.length > 1);
-    } else if (shouldIgnoreAboveBottom) {
-        topTiles = topTiles.filter(t => t.tile.stack.length === 1);
+export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, mode = NearestTileMode.AnyTop) {
+
+    let items = tileItemsUnder;
+
+    if (mode !== NearestTileMode.Any) {
+        items = items
+            .filter(t => t.tile.stack[t.tile.stack.length - 1] === t);
     }
 
-    if (topTiles.length === 0) {
+    switch (mode) {
+        case NearestTileMode.TopExceptBottom:
+            items = items.filter(t => t.tile.stack.length > 1);
+            break;
+        case NearestTileMode.TopIsBottom:
+            items = items.filter(t => t.tile.stack.length === 1);
+            break;
+    }
+
+    if (items.length === 0) {
         return null;
     }
 
-    return topTiles
+    return items
         .map(t => ({
             t,
             dx: t.x + t.sprite.xBottomCenter_fromTopLeft - input.x,
@@ -108,6 +122,8 @@ export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput,
         .reduce((out, t) => out.distSqr < t.distSqr ? out : t)
         .t;
 }
+
+let highlightedTileItems: TileItem[];
 
 export class TileHighlighter {
     oldTilesUnder: Tile[] = [];
@@ -124,8 +140,10 @@ export class TileHighlighter {
 
         for (let t of this.oldTileItemsUnder) {
             t.shouldHighlight = false;
+            t.shouldBringToFront = false;
         }
-
+        this.oldTileItemsUnder = [];
+        highlightedTileItems = [];
         // for (let tile of this.oldTilesUnder) {
         //     for (let t of tile.stack) {
         //         t.shouldHighlight = false;
@@ -133,18 +151,58 @@ export class TileHighlighter {
         // }
 
         if (movingTileItem) {
+
             let nearestTile = getNearestTile(this.map, tilesUnder, input);
+
+            let exceptMoving = tileItemsUnder.filter(t => t !== movingTileItem);
+            let nearestTileItem = getNearestTileItem(exceptMoving, input);
+
+            let n: TileItem[] = [];
             if (nearestTile) {
-                for (let t of nearestTile.stack) {
+                n.push(...nearestTile.stack);
+            }
+
+            if (nearestTileItem) {
+                n.push(nearestTileItem);
+            }
+
+            let nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
+
+            if (nearestOfAll) {
+                let stack = nearestOfAll.tile.stack;
+                let k = 0;
+                for (let t of stack) {
                     t.shouldHighlight = true;
+                    t.shouldBringToFront = true;
+                    // t.shouldBringToFront = k > 0;
                     this.oldTileItemsUnder.push(t);
+                    highlightedTileItems.push(t);
+                    k++;
                 }
             }
+
+            // if (nearestTile) {
+            //     for (let t of nearestTile.stack) {
+            //         t.shouldHighlight = true;
+            //         this.oldTileItemsUnder.push(t);
+            //     }
+            // }
         } else {
             let nearestTileItem = getNearestTileItem(tileItemsUnder, input);
             if (nearestTileItem) {
-                nearestTileItem.shouldHighlight = true;
-                this.oldTileItemsUnder = [nearestTileItem];
+                let stack = nearestTileItem.tile.stack;
+                let k = 0;
+                for (let t of stack) {
+                    t.shouldHighlight = true;
+                    t.shouldBringToFront = k > 0;
+                    this.oldTileItemsUnder.push(t);
+                    highlightedTileItems.push(t);
+                    k++;
+                }
+                // nearestTileItem.shouldHighlight = true;
+                // nearestTileItem.shouldBringToFront = nearestTileItem.tile.stack.indexOf(nearestTileItem) > 0;
+                // this.oldTileItemsUnder = [nearestTileItem];
+                // highlightedTileItems = [nearestTileItem];
             }
         }
 
@@ -171,12 +229,14 @@ export class TileMover {
 
         if (!this.activeTileItem) {
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
+            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
             if (!nearestTileItem) { return; }
 
             if (this.shouldClone) {
                 nearestTileItem = { ...nearestTileItem };
-                nearestTileItem.tile.stack.push(nearestTileItem);
+                // nearestTileItem.tile.stack.push(nearestTileItem);
+                this.map.tileItems_floating.push(nearestTileItem);
+                nearestTileItem.tile = null;
             }
 
             this.activeTileItem = nearestTileItem;
@@ -207,8 +267,10 @@ export class TileMover {
                 this.activeTileItem.zIndex = this.zStart;
             } else {
                 // Move to new stack
-                let newTile = getNearestTile(this.map, tilesUnder, input);
-                if (newTile == null) { return; }
+                // let newTile = getNearestTile(this.map, tilesUnder, input);
+                let newTileItem = getNearestTileItem(highlightedTileItems.filter(x => x !== this.activeTileItem), input);
+                if (newTileItem == null) { return; }
+                let newTile = newTileItem.tile;
 
                 // Calculate New position                
                 this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
@@ -222,6 +284,11 @@ export class TileMover {
                 }
                 newTile.stack.push(this.activeTileItem);
                 this.activeTileItem.tile = newTile;
+
+                let i = this.map.tileItems_floating.indexOf(this.activeTileItem);
+                if (i >= 0) {
+                    this.map.tileItems_floating.splice(i, 1);
+                }
             }
 
             this.activeTileItem.shouldHighlight = false;
@@ -249,7 +316,7 @@ export class ViewportMover {
 
         if (!this.isDragging) {
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, false, true);
+            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopIsBottom);
             if (!nearestTileItem) { return; }
 
             this.isDragging = true;

@@ -6,6 +6,8 @@ export class ViewPort {
 }
 
 export class Map {
+    tileItems_floating: TileItem[];
+
     tiles: Tile[][];
     iZero: number;
     jZero: number;
@@ -40,6 +42,7 @@ export class TileItem implements SpriteInstance {
 
     shouldHighlight: boolean;
     opacity: number;
+    shouldBringToFront: boolean;
 }
 
 export interface SpriteInstance {
@@ -50,6 +53,7 @@ export interface SpriteInstance {
 
     shouldHighlight: boolean;
     opacity: number;
+    shouldBringToFront: boolean;
 }
 
 export class Sprite {

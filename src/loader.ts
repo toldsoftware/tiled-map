@@ -15,6 +15,7 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
         tileWidth,
         tileHeight,
         tiles: [],
+        tileItems_floating: [],
         defaultSprite: null
     };
 
@@ -54,7 +55,8 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 y,
                 zIndex,
                 opacity: 1,
-                shouldHighlight: false
+                shouldHighlight: false,
+                shouldBringToFront: false
             });
         }
     }
@@ -89,7 +91,8 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 y: y - defaultSprite.stackHeight,
                 zIndex: zIndex + 0.1,
                 opacity: 1,
-                shouldHighlight: false
+                shouldHighlight: false,
+                shouldBringToFront: false
             });
 
             iSprite++;

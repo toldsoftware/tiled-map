@@ -20,7 +20,13 @@ export declare function getTilesAtInput(map: Map, input: UserInput): {
     tileItemsUnder: TileItem[];
 };
 export declare function getNearestTile(map: Map, tilesUnder: Tile[], input: UserInput): Tile;
-export declare function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, shouldIgnoreBottom?: boolean, shouldIgnoreAboveBottom?: boolean): TileItem;
+export declare enum NearestTileMode {
+    AnyTop = 0,
+    TopExceptBottom = 1,
+    TopIsBottom = 2,
+    Any = 3,
+}
+export declare function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, mode?: NearestTileMode): TileItem;
 export declare class TileHighlighter {
     private map;
     oldTilesUnder: Tile[];

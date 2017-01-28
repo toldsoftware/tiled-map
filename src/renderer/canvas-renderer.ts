@@ -122,25 +122,20 @@ export class CanvasRenderer extends Renderer {
             ctx.globalAlpha = 1;
         }
 
-        // // Draw Highlight above others
-        // for (let i = 0; i < sprites.length; i++) {
-        //     let s = sprites[i];
-        //     let x = (s.x - viewPort.xLeft) * xScale;
-        //     let y = (s.y - viewPort.yTop) * yScale;
-        //     let w = s.sprite.width * xScale;
-        //     let h = s.sprite.height * yScale;
+        // Draw Highlight above others
+        for (let i = 0; i < sprites.length; i++) {
+            let s = sprites[i];
+            let x = (s.x - viewPort.xLeft) * xScale;
+            let y = (s.y - viewPort.yTop) * yScale;
+            let w = s.sprite.width * xScale;
+            let h = s.sprite.height * yScale;
 
-        //     if (s.shouldHighlight) {
-        //         // ctx.globalAlpha = 0.25;
-        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
-        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
-        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
-        //         // ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
-        //         // ctx.globalAlpha = 1;
-
-        //         ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
-        //     }
-        // }
+            if (s.shouldBringToFront) {
+                ctx.globalAlpha = 0.25;
+                ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
+                ctx.globalAlpha = 1;
+            }
+        }
     }
 
     drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort) {
