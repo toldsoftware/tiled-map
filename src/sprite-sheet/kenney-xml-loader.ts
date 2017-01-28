@@ -29,7 +29,7 @@ export class KenneyXmlLoader extends SpriteSheetLoader {
 
         spriteSheet.sprites = obj.SubTexture.map(t => {
 
-            // Conver to numbers
+            // Convert to numbers
             t.x = t.x * 1;
             t.y = t.y * 1;
             t.width = t.width * 1;

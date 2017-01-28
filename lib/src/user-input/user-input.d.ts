@@ -1,4 +1,4 @@
-import { Map, Tile, TileItem } from '../tiled-map';
+import { ViewPort, Map, Tile, TileItem } from '../tiled-map';
 export interface UserInput {
     x: number;
     y: number;
@@ -17,7 +17,7 @@ export declare function getTilesAtInput(map: Map, input: UserInput): {
     tileItemsUnder: TileItem[];
 };
 export declare function getNearestTile(map: Map, tilesUnder: Tile[], input: UserInput): Tile;
-export declare function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput): TileItem;
+export declare function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, shouldIgnoreBottom?: boolean, shouldIgnoreAboveBottom?: boolean): TileItem;
 export declare class TileHighlighter {
     private map;
     oldTilesUnder: Tile[];
@@ -34,5 +34,16 @@ export declare class TileMover {
     yStart: number;
     zStart: number;
     constructor(map: Map);
+    handleInput(input: UserInput): void;
+}
+export declare class ViewportMover {
+    private map;
+    private viewPort;
+    isDragging: boolean;
+    xStart: number;
+    yStart: number;
+    xLeftStart: number;
+    yTopStart: number;
+    constructor(map: Map, viewPort: ViewPort);
     handleInput(input: UserInput): void;
 }

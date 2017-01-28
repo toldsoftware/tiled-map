@@ -14,3 +14,8 @@
 ## 0:00-01:00
 
 - Move Tiles on Map
+
+## 01:2:18
+
+- Add Viewport Dragging
+	- BUGGY - DISABLED for now

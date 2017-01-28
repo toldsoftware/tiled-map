@@ -1,4 +1,4 @@
-import { Map, Tile, TileItem } from '../tiled-map';
+import { ViewPort, Map, Tile, TileItem } from '../tiled-map';
 
 export interface UserInput {
     x: number;
@@ -80,10 +80,16 @@ export function getNearestTile(map: Map, tilesUnder: Tile[], input: UserInput) {
         .t;
 }
 
-export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput) {
+export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, shouldIgnoreBottom = false, shouldIgnoreAboveBottom = false) {
     let topTiles = tileItemsUnder
-        // Only if top of stack
+        // Only if top of stack (and not bottom)
         .filter(t => t.tile.stack[t.tile.stack.length - 1] === t);
+
+    if (shouldIgnoreBottom) {
+        topTiles = topTiles.filter(t => t.tile.stack.length > 1);
+    } else if (shouldIgnoreAboveBottom) {
+        topTiles = topTiles.filter(t => t.tile.stack.length === 1);
+    }
 
     if (topTiles.length === 0) {
         return null;
@@ -122,13 +128,7 @@ export class TileHighlighter {
         //     }
         // }
 
-        let nearestTileItem = getNearestTileItem(tileItemsUnder, input);
-        if (nearestTileItem) {
-            nearestTileItem.shouldHighlight = true;
-            this.oldTileItemsUnder = [nearestTileItem];
-        }
-
-        if (nearestTileItem.opacity < 1) {
+        if (movingTileItem) {
             let nearestTile = getNearestTile(this.map, tilesUnder, input);
             if (nearestTile) {
                 for (let t of nearestTile.stack) {
@@ -136,13 +136,18 @@ export class TileHighlighter {
                     this.oldTileItemsUnder.push(t);
                 }
             }
+        } else {
+            let nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+            if (nearestTileItem) {
+                nearestTileItem.shouldHighlight = true;
+                this.oldTileItemsUnder = [nearestTileItem];
+            }
         }
-
-        // this.oldTilesUnder = [nearestTile];
-
 
     }
 }
+
+let movingTileItem: TileItem;
 
 export class TileMover {
 
@@ -162,7 +167,7 @@ export class TileMover {
 
         if (!this.activeTileItem) {
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            let nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
             if (!nearestTileItem) { return; }
 
             this.activeTileItem = nearestTileItem;
@@ -214,5 +219,59 @@ export class TileMover {
             this.activeTileItem = null;
         }
 
+        movingTileItem = this.activeTileItem;
+    }
+}
+
+export class ViewportMover {
+    isDragging: boolean;
+    xStart: number;
+    yStart: number;
+    xLeftStart: number;
+    yTopStart: number;
+
+    constructor(private map: Map, private viewPort: ViewPort) {
+    }
+
+    handleInput(input: UserInput) {
+        if (input.type === UserInputType.Move) { return; }
+        // console.log('TileMover.handleInput input=', input);
+
+        if (!this.isDragging) {
+            let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, false, true);
+            if (!nearestTileItem) { return; }
+
+            this.isDragging = true;
+            this.xStart = input.x;
+            this.yStart = input.y;
+            this.xLeftStart = this.viewPort.xLeft;
+            this.yTopStart = this.viewPort.yTop;
+
+        }
+
+        let dx = input.x - this.xStart;
+        let dy = input.y - this.yStart;
+
+        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
+
+        let w = this.viewPort.xRight - this.viewPort.xLeft;
+        let h = this.viewPort.yBottom - this.viewPort.yTop;
+
+        // Reduce jumping
+        // dx = Math.max(-2, Math.min(1, dx));
+        // dy = Math.max(-1, Math.min(1, dy));
+        dx = Math.round(dx);
+        dy = Math.round(dy);
+
+        this.viewPort.xLeft = this.xLeftStart - dx;
+        this.viewPort.yTop = this.yTopStart - dy;
+
+        this.viewPort.xRight = this.viewPort.xLeft + w;
+        this.viewPort.yBottom = this.viewPort.yTop + h;
+
+        if (input.type === UserInputType.End) {
+            this.isDragging = false;
+        }
     }
 }

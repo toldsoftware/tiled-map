@@ -54,7 +54,7 @@
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, viewPort, r, tileHighlighter, tileMover;
+	        var map, viewPort, r, tileHighlighter, tileMover, viewPortMover;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -64,7 +64,8 @@
 	                        // './kenney-isometric/cityTiles_sheet.xml',
 	                        // './kenney-isometric/buildingTiles_sheet.png',
 	                        // './kenney-isometric/buildingTiles_sheet.xml',
-	                        67, new kenney_xml_loader_1.KenneyXmlLoader(), tiled_map_1.MapShape.Isometric, 128 + 4, 64 + 2)];
+	                        // 67,
+	                        83, new kenney_xml_loader_1.KenneyXmlLoader(), tiled_map_1.MapShape.Isometric, 128 + 4, 64 + 2)];
 	                case 1:
 	                    map = _a.sent();
 	                    viewPort = new tiled_map_1.ViewPort();
@@ -75,9 +76,11 @@
 	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
 	                    tileMover = new user_input_1.TileMover(map);
+	                    viewPortMover = new user_input_1.ViewportMover(map, viewPort);
 	                    r.onInput = function (input) {
 	                        tileHighlighter.handleInput(input);
 	                        tileMover.handleInput(input);
+	                        // viewPortMover.handleInput(input);
 	                        r.draw(map, viewPort);
 	                    };
 	                    setTimeout(function () {
@@ -300,7 +303,7 @@
 	            sprites: []
 	        };
 	        spriteSheet.sprites = obj.SubTexture.map(function (t) {
-	            // Conver to numbers
+	            // Convert to numbers
 	            t.x = t.x * 1;
 	            t.y = t.y * 1;
 	            t.width = t.width * 1;
@@ -788,15 +791,15 @@
 	                                y: y,
 	                                zIndex: zIndex
 	                            };
-	                            tile.stack[0] = {
+	                            tile.stack.push({
 	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
-	                                y: y,
-	                                zIndex: zIndex,
+	                                y: y - defaultSprite.stackHeight,
+	                                zIndex: zIndex + 0.1,
 	                                opacity: 1,
 	                                shouldHighlight: false
-	                            };
+	                            });
 	                            iSprite++;
 	                            if (iSprite >= spriteCount) {
 	                                break;
@@ -2540,9 +2543,17 @@
 	        .t;
 	}
 	exports.getNearestTile = getNearestTile;
-	function getNearestTileItem(tileItemsUnder, input) {
+	function getNearestTileItem(tileItemsUnder, input, shouldIgnoreBottom, shouldIgnoreAboveBottom) {
+	    if (shouldIgnoreBottom === void 0) { shouldIgnoreBottom = false; }
+	    if (shouldIgnoreAboveBottom === void 0) { shouldIgnoreAboveBottom = false; }
 	    var topTiles = tileItemsUnder
 	        .filter(function (t) { return t.tile.stack[t.tile.stack.length - 1] === t; });
+	    if (shouldIgnoreBottom) {
+	        topTiles = topTiles.filter(function (t) { return t.tile.stack.length > 1; });
+	    }
+	    else if (shouldIgnoreAboveBottom) {
+	        topTiles = topTiles.filter(function (t) { return t.tile.stack.length === 1; });
+	    }
 	    if (topTiles.length === 0) {
 	        return null;
 	    }
@@ -2575,12 +2586,7 @@
 	        //         t.shouldHighlight = false;
 	        //     }
 	        // }
-	        var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
-	        if (nearestTileItem) {
-	            nearestTileItem.shouldHighlight = true;
-	            this.oldTileItemsUnder = [nearestTileItem];
-	        }
-	        if (nearestTileItem.opacity < 1) {
+	        if (movingTileItem) {
 	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
 	            if (nearestTile) {
 	                for (var _c = 0, _d = nearestTile.stack; _c < _d.length; _c++) {
@@ -2590,11 +2596,18 @@
 	                }
 	            }
 	        }
-	        // this.oldTilesUnder = [nearestTile];
+	        else {
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+	            if (nearestTileItem) {
+	                nearestTileItem.shouldHighlight = true;
+	                this.oldTileItemsUnder = [nearestTileItem];
+	            }
+	        }
 	    };
 	    return TileHighlighter;
 	}());
 	exports.TileHighlighter = TileHighlighter;
+	var movingTileItem;
 	var TileMover = (function () {
 	    function TileMover(map) {
 	        this.map = map;
@@ -2607,7 +2620,7 @@
 	        // console.log('TileMover.handleInput input=', input);
 	        if (!this.activeTileItem) {
 	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, true);
 	            if (!nearestTileItem) {
 	                return;
 	            }
@@ -2654,10 +2667,54 @@
 	            this.activeTileItem.opacity = 1;
 	            this.activeTileItem = null;
 	        }
+	        movingTileItem = this.activeTileItem;
 	    };
 	    return TileMover;
 	}());
 	exports.TileMover = TileMover;
+	var ViewportMover = (function () {
+	    function ViewportMover(map, viewPort) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	    }
+	    ViewportMover.prototype.handleInput = function (input) {
+	        if (input.type === UserInputType.Move) {
+	            return;
+	        }
+	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.isDragging) {
+	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, false, true);
+	            if (!nearestTileItem) {
+	                return;
+	            }
+	            this.isDragging = true;
+	            this.xStart = input.x;
+	            this.yStart = input.y;
+	            this.xLeftStart = this.viewPort.xLeft;
+	            this.yTopStart = this.viewPort.yTop;
+	        }
+	        var dx = input.x - this.xStart;
+	        var dy = input.y - this.yStart;
+	        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
+	        var w = this.viewPort.xRight - this.viewPort.xLeft;
+	        var h = this.viewPort.yBottom - this.viewPort.yTop;
+	        // Reduce jumping
+	        // dx = Math.max(-2, Math.min(1, dx));
+	        // dy = Math.max(-1, Math.min(1, dy));
+	        dx = Math.round(dx);
+	        dy = Math.round(dy);
+	        this.viewPort.xLeft = this.xLeftStart - dx;
+	        this.viewPort.yTop = this.yTopStart - dy;
+	        this.viewPort.xRight = this.viewPort.xLeft + w;
+	        this.viewPort.yBottom = this.viewPort.yTop + h;
+	        if (input.type === UserInputType.End) {
+	            this.isDragging = false;
+	        }
+	    };
+	    return ViewportMover;
+	}());
+	exports.ViewportMover = ViewportMover;
 
 
 /***/ },

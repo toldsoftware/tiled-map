@@ -2,7 +2,7 @@ import { Map, MapShape, ViewPort } from '../src/tiled-map';
 import { KenneyXmlLoader } from '../src/sprite-sheet/kenney-xml-loader';
 import { CanvasRenderer } from '../src/renderer/canvas-renderer';
 import { createMapWithSpriteSheetSamples } from '../src/loader';
-import { TileMover, TileHighlighter } from '../src/user-input/user-input';
+import { TileMover, TileHighlighter, ViewportMover } from '../src/user-input/user-input';
 
 // TODO: Load a test map
 
@@ -16,7 +16,8 @@ async function load_async() {
         // './kenney-isometric/cityTiles_sheet.xml',
         // './kenney-isometric/buildingTiles_sheet.png',
         // './kenney-isometric/buildingTiles_sheet.xml',
-        67,
+        // 67,
+        83,
         new KenneyXmlLoader(), MapShape.Isometric, 128 + 4, 64 + 2);
 
     let viewPort = new ViewPort();
@@ -34,10 +35,12 @@ async function load_async() {
 
     let tileHighlighter = new TileHighlighter(map);
     let tileMover = new TileMover(map);
+    let viewPortMover = new ViewportMover(map, viewPort);
 
     r.onInput = (input) => {
         tileHighlighter.handleInput(input);
         tileMover.handleInput(input);
+        // viewPortMover.handleInput(input);
 
         r.draw(map, viewPort);
     };

@@ -82,15 +82,15 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 zIndex
             };
 
-            tile.stack[0] = {
+            tile.stack.push({
                 tile,
                 sprite: s,
                 x,
-                y,
-                zIndex,
+                y: y - defaultSprite.stackHeight,
+                zIndex: zIndex + 0.1,
                 opacity: 1,
                 shouldHighlight: false
-            };
+            });
 
             iSprite++;
             if (iSprite >= spriteCount) { break; }
