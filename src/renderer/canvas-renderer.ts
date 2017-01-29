@@ -3,6 +3,8 @@ import { UserInput, UserInputType } from '../user-input/user-input';
 import { SpriteInstance, ViewPort } from '../tiled-map';
 import { getImageEffect, ImageEffectKind } from './canvas-image-effect';
 
+const DEBUG = true;
+
 export class CanvasRenderer extends Renderer {
 
     canvas: HTMLCanvasElement;
@@ -14,8 +16,13 @@ export class CanvasRenderer extends Renderer {
 
     lastViewPort: ViewPort;
 
-    xCanvasLast = 0;
-    yCanvasLast = 0;
+    xCanvasLast: number;
+    yCanvasLast: number;
+
+    isMultipleLast: boolean;
+    hasBeenMultiple: boolean;
+    x2CanvasLast: number;
+    y2CanvasLast: number;
 
 
     constructor(host: HTMLElement) {
@@ -27,6 +34,11 @@ export class CanvasRenderer extends Renderer {
         // this.canvas.style.height = '100%';
         this.canvas.width = host.clientWidth;
         this.canvas.height = host.clientHeight;
+
+        window.addEventListener('resize', () => {
+            this.canvas.width = host.clientWidth;
+            this.canvas.height = host.clientHeight;
+        });
 
         this.canvas.addEventListener('mousedown', (e) => this.getInput(e, UserInputType.Start));
         this.canvas.addEventListener('touchstart', (e) => this.getInput(e, UserInputType.Start));
@@ -40,6 +52,8 @@ export class CanvasRenderer extends Renderer {
         if (this.lastViewPort == null || this.onInput == null) { return; }
         // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
 
+        let origType = type;
+
         let xCanvas = this.xCanvasLast;
         let yCanvas = this.yCanvasLast;
 
@@ -48,45 +62,82 @@ export class CanvasRenderer extends Renderer {
         let me = e as MouseEvent;
         let te = e as TouchEvent;
 
+        let isMultiple = false;
+        let x2Canvas = this.x2CanvasLast;
+        let y2Canvas = this.y2CanvasLast;
+
+        let isAnyTouch = false;
+        let inputCount = 0;
+
         if (me.clientX) {
             xCanvas = me.clientX - rect.left;
             yCanvas = me.clientY - rect.top;
+            inputCount = 1;
         } else if (te.touches != null && te.touches.length > 0) {
             xCanvas = te.touches[0].clientX - rect.left;
             yCanvas = te.touches[0].clientY - rect.top;
+            inputCount = 1;
 
-            // if (e.touches[1]) {
-            //     if (DEBUG_MOUSE) { console.log('2 FINGER'); }
+            if (te.touches[1]) {
+                if (DEBUG) { console.log('2 FINGER'); }
 
-            //     xm2 = e.touches[1].clientX - rect.left;
-            //     ym2 = e.touches[1].clientY - rect.top;
-            // }
+                x2Canvas = te.touches[1].clientX - rect.left;
+                y2Canvas = te.touches[1].clientY - rect.top;
+                isMultiple = true;
+                inputCount = 2;
+            }
+
+            isAnyTouch = true;
         }
+
+        let isMultipleStart = isMultiple && !this.isMultipleLast;
+        let isMultipleEnd = !isMultiple && this.isMultipleLast;
 
         this.xCanvasLast = xCanvas;
         this.yCanvasLast = yCanvas;
+        this.x2CanvasLast = x2Canvas;
+        this.y2CanvasLast = y2Canvas;
+        this.isMultipleLast = isMultiple;
 
         // Scale for viewPort
         let u = (xCanvas / this.canvas.width);
         let v = (yCanvas / this.canvas.height);
-
         let x = this.lastViewPort.xLeft + u * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
         let y = this.lastViewPort.yTop + v * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+
+        let u2 = (x2Canvas / this.canvas.width);
+        let v2 = (y2Canvas / this.canvas.height);
+        let x2 = this.lastViewPort.xLeft + u2 * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
+        let y2 = this.lastViewPort.yTop + v2 * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
 
         if (type === UserInputType.Move && this.isInputDown) {
             type = UserInputType.Drag;
         }
 
+        if (isMultipleStart) {
+            type = UserInputType.ChangeToMultipleStart;
+            this.hasBeenMultiple = true;
+            this.inputDownStart = Date.now();
+            isMultiple = true;
+        } else if (isMultipleEnd) {
+            type = UserInputType.MultipleEnd;
+            isMultiple = true;
+        } else if (!isMultiple && this.hasBeenMultiple) {
+            type = UserInputType.MultipleEndAfter;
+            isMultiple = true;
+        }
+
         let duration = Date.now() - (this.inputDownStart || Date.now());
 
-        this.onInput({ x, y, type, duration, u, v });
+        this.onInput({ x, y, type, duration, u, v, isMultiple, inputCount, u2, v2, x2, y2 });
 
-        if (type === UserInputType.Start) {
+        if (origType === UserInputType.Start) {
             this.isInputDown = true;
             this.inputDownStart = Date.now();
-        } else if (type === UserInputType.End) {
+        } else if (origType === UserInputType.End && !isAnyTouch) {
             this.isInputDown = false;
             this.inputDownStart = null;
+            this.hasBeenMultiple = false;
         }
 
         e.preventDefault();

@@ -10,6 +10,10 @@ export declare class CanvasRenderer extends Renderer {
     lastViewPort: ViewPort;
     xCanvasLast: number;
     yCanvasLast: number;
+    isMultipleLast: boolean;
+    hasBeenMultiple: boolean;
+    x2CanvasLast: number;
+    y2CanvasLast: number;
     constructor(host: HTMLElement);
     getInput(e: Event, type: UserInputType): false;
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;

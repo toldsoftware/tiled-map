@@ -34,6 +34,11 @@
 
 - Support Touch
 
+## 19:30-20:45
+
+- Make full screen
+- Support Multi-touch
+
 ##
 
 - Add Piece Selection

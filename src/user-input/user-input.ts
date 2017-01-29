@@ -9,6 +9,13 @@ export interface UserInput {
     y: number;
     type: UserInputType;
 
+    isMultiple: boolean;
+    inputCount: number;
+    u2: number;
+    v2: number;
+    x2: number;
+    y2: number;
+
     tilesUnder?: Tile[];
     tileItemsUnder?: TileItem[];
 }
@@ -17,7 +24,10 @@ export enum UserInputType {
     Move,
     Start,
     Drag,
-    End
+    End,
+    ChangeToMultipleStart,
+    MultipleEnd,
+    MultipleEndAfter,
 }
 
 export function getTilesAtInput(map: Map, input: UserInput) {
@@ -133,6 +143,13 @@ export class TileHighlighter {
     constructor(private map: Map) {
     }
 
+    cancel() {
+        this.unhighlight();
+        highlightedTileItems = [];
+        this.oldTilesUnder = [];
+        this.oldTileItemsUnder = [];
+    }
+
     unhighlight() {
         for (let t of this.oldTileItemsUnder) {
             t.shouldHighlight = false;
@@ -235,6 +252,29 @@ export class TileMover {
     zStart: number;
 
     constructor(private map: Map, private shouldClone: boolean) {
+    }
+
+    cancel() {
+
+        if (!this.activeTileItem) {
+            return;
+        }
+
+        // Return to old position
+        this.activeTileItem.x = this.xStart;
+        this.activeTileItem.y = this.yStart;
+        this.activeTileItem.zIndex = this.zStart;
+        this.activeTileItem.opacity = 1;
+        this.activeTileItem.shouldHighlight = false;
+
+        // Remove floating item
+        let i = this.map.tileItems_floating.indexOf(this.activeTileItem);
+        if (i >= 0) {
+            this.map.tileItems_floating.splice(i, 1);
+        }
+
+        this.activeTileItem = null;
+        movingTileItem = null;
     }
 
     handleInput(input: UserInput) {
@@ -369,12 +409,17 @@ export class ViewportMover {
 
 export class ViewportScroller {
 
+    stopTimeoutId: number;
     animationId: number;
     dx: number;
     dy: number;
     speed = 20;
 
     constructor(private map: Map, private viewPort: ViewPort) {
+    }
+
+    cancel() {
+        this.stop();
     }
 
     handleInput(input: UserInput) {
@@ -411,6 +456,9 @@ export class ViewportScroller {
 
         cancelAnimationFrame(this.animationId);
         this.animationId = requestAnimationFrame(() => this.animate());
+
+        clearTimeout(this.stopTimeoutId);
+        this.stopTimeoutId = setTimeout(() => this.stop(), 3000);
     }
 
     stop() {
@@ -427,8 +475,10 @@ export class ViewportScroller {
         let w = this.viewPort.xRight - this.viewPort.xLeft;
         let h = this.viewPort.yBottom - this.viewPort.yTop;
 
-        this.viewPort.xLeft += this.dx * this.speed;
-        this.viewPort.yTop += this.dy * this.speed;
+        let scale = w / 1600;
+
+        this.viewPort.xLeft += this.dx * this.speed * scale;
+        this.viewPort.yTop += this.dy * this.speed * scale;
 
         this.viewPort.xRight = this.viewPort.xLeft + w;
         this.viewPort.yBottom = this.viewPort.yTop + h;

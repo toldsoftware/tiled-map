@@ -6,6 +6,12 @@ export interface UserInput {
     x: number;
     y: number;
     type: UserInputType;
+    isMultiple: boolean;
+    inputCount: number;
+    u2: number;
+    v2: number;
+    x2: number;
+    y2: number;
     tilesUnder?: Tile[];
     tileItemsUnder?: TileItem[];
 }
@@ -14,6 +20,9 @@ export declare enum UserInputType {
     Start = 1,
     Drag = 2,
     End = 3,
+    ChangeToMultipleStart = 4,
+    MultipleEnd = 5,
+    MultipleEndAfter = 6,
 }
 export declare function getTilesAtInput(map: Map, input: UserInput): {
     tilesUnder: Tile[];
@@ -33,6 +42,7 @@ export declare class TileHighlighter {
     oldTileItemsUnder: TileItem[];
     unhighlightTimeoutId: number;
     constructor(map: Map);
+    cancel(): void;
     unhighlight(): void;
     handleInput(input: UserInput): void;
 }
@@ -46,6 +56,7 @@ export declare class TileMover {
     yStart: number;
     zStart: number;
     constructor(map: Map, shouldClone: boolean);
+    cancel(): void;
     handleInput(input: UserInput): void;
 }
 export declare class ViewportMover {
@@ -62,11 +73,13 @@ export declare class ViewportMover {
 export declare class ViewportScroller {
     private map;
     private viewPort;
+    stopTimeoutId: number;
     animationId: number;
     dx: number;
     dy: number;
     speed: number;
     constructor(map: Map, viewPort: ViewPort);
+    cancel(): void;
     handleInput(input: UserInput): void;
     stop(): void;
     animate(): void;
