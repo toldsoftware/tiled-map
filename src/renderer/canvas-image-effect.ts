@@ -113,9 +113,13 @@ export async function createImageEffect_light(image: HTMLImageElement | HTMLCanv
             let a = data[i + 3];
 
             if (a > 0) {
-                data[i + 0] = r * 0.6 + 225 * 0.4;
-                data[i + 1] = g * 0.6 + 225 * 0.4;
-                data[i + 2] = b * 0.4 + 225 * 0.6;
+                // data[i + 0] = r * 0.6 + 225 * 0.4;
+                // data[i + 1] = g * 0.6 + 225 * 0.4;
+                // data[i + 2] = b * 0.4 + 225 * 0.6;
+
+                data[i + 0] = r * 0.7 + 225 * 0.3;
+                data[i + 1] = g * 0.7 + 225 * 0.3;
+                data[i + 2] = b * 0.6 + 225 * 0.4;
             }
 
         }

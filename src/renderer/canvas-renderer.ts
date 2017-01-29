@@ -222,8 +222,8 @@ export class CanvasRenderer extends Renderer {
             let h = s.sprite.height * yScale;
 
             if (s.shouldBringToFront) {
-                ctx.globalAlpha = 0.25;
-                ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+                ctx.globalAlpha = 0.25 * s.opacity;
+                ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
                 ctx.globalAlpha = 1;
             }
         }

@@ -43,6 +43,10 @@
 
 - Improve UI
 
+## 21:31-22:15
+
+- Improve Highlighting
+
 ##
 
 - Add Piece Selection

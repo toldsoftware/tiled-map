@@ -23,10 +23,10 @@ async function load_async() {
     let r = new CanvasRenderer(document.getElementById('host'));
 
     let viewPort = new ViewPort();
-    viewPort.xLeft = -100;
-    viewPort.yTop = -600;
-    viewPort.xRight = 1500;
-    viewPort.yBottom = 600;
+    viewPort.xLeft = -800;
+    viewPort.xRight = 2400;
+    viewPort.yTop = -900;
+    viewPort.yBottom = 900;
 
     let tileHighlighter = new TileHighlighter(map);
     let tileMover = new TileMover(map, false);

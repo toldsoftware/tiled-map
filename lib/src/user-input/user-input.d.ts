@@ -49,6 +49,7 @@ export declare class TileHighlighter {
 export declare class TileMover {
     private map;
     private shouldClone;
+    previewTileItem: TileItem;
     activeTileItem: TileItem;
     dxStart: number;
     dyStart: number;
@@ -56,8 +57,10 @@ export declare class TileMover {
     yStart: number;
     zStart: number;
     constructor(map: Map, shouldClone: boolean);
+    removeFromFloating(tileItem: TileItem): void;
     cancel(): void;
     handleInput(input: UserInput): void;
+    setPositionFromTileTop(tileItem: TileItem, newTile: Tile): void;
 }
 export declare class ViewportMover {
     private map;

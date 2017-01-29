@@ -70,10 +70,10 @@
 	                    map = _a.sent();
 	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
 	                    viewPort = new tiled_map_1.ViewPort();
-	                    viewPort.xLeft = -100;
-	                    viewPort.yTop = -600;
-	                    viewPort.xRight = 1500;
-	                    viewPort.yBottom = 600;
+	                    viewPort.xLeft = -800;
+	                    viewPort.xRight = 2400;
+	                    viewPort.yTop = -900;
+	                    viewPort.yBottom = 900;
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
 	                    tileMover = new user_input_1.TileMover(map, false);
 	                    tileCloner = new user_input_1.TileMover(map, true);
@@ -807,8 +807,8 @@
 	            var w = s.sprite.width * xScale;
 	            var h = s.sprite.height * yScale;
 	            if (s.shouldBringToFront) {
-	                ctx.globalAlpha = 0.25;
-	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+	                ctx.globalAlpha = 0.25 * s.opacity;
+	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
 	                ctx.globalAlpha = 1;
 	            }
 	        }
@@ -1077,6 +1077,14 @@
 	        this.map = map;
 	        this.shouldClone = shouldClone;
 	    }
+	    TileMover.prototype.removeFromFloating = function (tileItem) {
+	        // let i = this.map.tileItems_floating.indexOf(tileItem);
+	        // if (i >= 0) {
+	        //     this.map.tileItems_floating.splice(i, 1);
+	        // }
+	        // TEMP
+	        this.map.tileItems_floating = [];
+	    };
 	    TileMover.prototype.cancel = function () {
 	        if (!this.activeTileItem) {
 	            return;
@@ -1088,11 +1096,10 @@
 	        this.activeTileItem.opacity = 1;
 	        this.activeTileItem.shouldHighlight = false;
 	        // Remove floating item
-	        var i = this.map.tileItems_floating.indexOf(this.activeTileItem);
-	        if (i >= 0) {
-	            this.map.tileItems_floating.splice(i, 1);
-	        }
+	        this.removeFromFloating(this.activeTileItem);
+	        this.removeFromFloating(this.previewTileItem);
 	        this.activeTileItem = null;
+	        this.previewTileItem = null;
 	        movingTileItem = null;
 	    };
 	    TileMover.prototype.handleInput = function (input) {
@@ -1101,12 +1108,12 @@
 	            return;
 	        }
 	        // console.log('TileMover.handleInput input=', input);
-	        if (!this.activeTileItem && input.type !== UserInputType.Start) {
-	            return;
-	        }
 	        if (!this.activeTileItem) {
-	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+	            if (input.type !== UserInputType.Start) {
+	                return;
+	            }
+	            var _a = getTilesAtInput(this.map, input), tilesUnder_1 = _a.tilesUnder, tileItemsUnder_1 = _a.tileItemsUnder;
+	            var nearestTileItem = getNearestTileItem(tileItemsUnder_1, input, NearestTileMode.TopExceptBottom);
 	            if (!nearestTileItem) {
 	                return;
 	            }
@@ -1122,18 +1129,39 @@
 	            this.xStart = this.activeTileItem.x;
 	            this.yStart = this.activeTileItem.y;
 	            this.zStart = this.activeTileItem.zIndex;
+	            this.previewTileItem = tslib_1.__assign({}, nearestTileItem);
+	            this.previewTileItem.tile = null;
+	            this.previewTileItem.opacity = 0.3;
+	            this.previewTileItem.shouldHighlight = true;
+	            this.previewTileItem.shouldBringToFront = true;
 	        }
+	        // Move Tile
 	        this.activeTileItem.x = input.x + this.dxStart;
 	        this.activeTileItem.y = input.y + this.dyStart;
 	        this.activeTileItem.shouldHighlight = true;
+	        this.activeTileItem.shouldBringToFront = true;
 	        this.activeTileItem.zIndex = 10000;
 	        this.activeTileItem.opacity = 0.5;
+	        // Show Preview
+	        var oldTile = this.activeTileItem.tile;
+	        var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
+	        if (oldTile && tilesUnder.some(function (t) { return t === oldTile; })) {
+	            this.removeFromFloating(this.previewTileItem);
+	        }
+	        else {
+	            var newTileItem = getNearestTileItem(highlightedTileItems.filter(function (x) { return x !== _this.activeTileItem; }), input);
+	            if (newTileItem == null) {
+	                return;
+	            }
+	            var newTile = newTileItem.tile;
+	            this.setPositionFromTileTop(this.previewTileItem, newTile);
+	            this.map.tileItems_floating.push(this.previewTileItem);
+	        }
+	        // Drop
 	        if (input.type === UserInputType.End) {
 	            // Move Stack
-	            var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
-	            var oldTile_1 = this.activeTileItem.tile;
-	            console.log('Move Stack', oldTile_1, this.activeTileItem, tilesUnder);
-	            if (oldTile_1 && tilesUnder.some(function (t) { return t === oldTile_1; })) {
+	            console.log('Move Stack', oldTile, this.activeTileItem, tilesUnder);
+	            if (oldTile && tilesUnder.some(function (t) { return t === oldTile; })) {
 	                // Return to old position
 	                this.activeTileItem.x = this.xStart;
 	                this.activeTileItem.y = this.yStart;
@@ -1147,27 +1175,33 @@
 	                    return;
 	                }
 	                var newTile = newTileItem.tile;
-	                // Calculate New position                
-	                this.activeTileItem.x = newTile.x + this.map.tileWidth * 0.5 - this.activeTileItem.sprite.xBottomCenter_fromTopLeft;
-	                this.activeTileItem.y = newTile.y + this.map.tileHeight - this.activeTileItem.sprite.yBottomCenter_fromTopLeft;
-	                this.activeTileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
-	                this.activeTileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
+	                // Calculate New position          
+	                this.setPositionFromTileTop(this.activeTileItem, newTile);
 	                // Change stack
-	                if (oldTile_1) {
-	                    oldTile_1.stack.splice(oldTile_1.stack.indexOf(this.activeTileItem), 1);
+	                if (oldTile) {
+	                    oldTile.stack.splice(oldTile.stack.indexOf(this.activeTileItem), 1);
 	                }
 	                newTile.stack.push(this.activeTileItem);
 	                this.activeTileItem.tile = newTile;
-	                var i = this.map.tileItems_floating.indexOf(this.activeTileItem);
-	                if (i >= 0) {
-	                    this.map.tileItems_floating.splice(i, 1);
-	                }
 	            }
-	            this.activeTileItem.shouldHighlight = false;
+	            this.removeFromFloating(this.activeTileItem);
+	            this.removeFromFloating(this.previewTileItem);
+	            var a_1 = this.activeTileItem;
+	            setTimeout((function () {
+	                a_1.shouldHighlight = false;
+	                a_1.shouldBringToFront = false;
+	            }), 1000);
 	            this.activeTileItem.opacity = 1;
 	            this.activeTileItem = null;
+	            this.previewTileItem = null;
 	        }
 	        movingTileItem = this.activeTileItem;
+	    };
+	    TileMover.prototype.setPositionFromTileTop = function (tileItem, newTile) {
+	        tileItem.x = newTile.x + this.map.tileWidth * 0.5 - tileItem.sprite.xBottomCenter_fromTopLeft;
+	        tileItem.y = newTile.y + this.map.tileHeight - tileItem.sprite.yBottomCenter_fromTopLeft;
+	        tileItem.y -= newTile.stack.reduce(function (out, t) { return out += t.sprite.stackHeight; }, 0);
+	        tileItem.zIndex = newTile.zIndex + newTile.stack.length * 0.1;
 	    };
 	    return TileMover;
 	}());
@@ -1185,14 +1219,13 @@
 	            return;
 	        }
 	        // console.log('TileMover.handleInput input=', input);
-	        if (!this.isDragging && input.type !== UserInputType.Start) {
-	            return;
-	        }
 	        if (!this.isDragging) {
+	            if (input.type !== UserInputType.Start) {
+	                return;
+	            }
 	            // Only valid if base tile
 	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopIsBottom);
-	            if (!nearestTileItem) {
+	            if (tileItemsUnder.some(function (x) { return x.tile.stack.length > 1; })) {
 	                return;
 	            }
 	            this.isDragging = true;
@@ -1505,9 +1538,12 @@
 	                        b = data[i + 2];
 	                        a = data[i + 3];
 	                        if (a > 0) {
-	                            data[i + 0] = r * 0.6 + 225 * 0.4;
-	                            data[i + 1] = g * 0.6 + 225 * 0.4;
-	                            data[i + 2] = b * 0.4 + 225 * 0.6;
+	                            // data[i + 0] = r * 0.6 + 225 * 0.4;
+	                            // data[i + 1] = g * 0.6 + 225 * 0.4;
+	                            // data[i + 2] = b * 0.4 + 225 * 0.6;
+	                            data[i + 0] = r * 0.7 + 225 * 0.3;
+	                            data[i + 1] = g * 0.7 + 225 * 0.3;
+	                            data[i + 2] = b * 0.6 + 225 * 0.4;
 	                        }
 	                    }
 	                    return [4 /*yield*/, pause()];
