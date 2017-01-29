@@ -60,4 +60,17 @@ export declare class SpriteSheet {
     image?: any;
     imageEffects?: any[];
     sprites: Sprite[];
+    layoutMap: Map;
+}
+export interface MapData {
+    tiles: {
+        i: number;
+        j: number;
+        k: number;
+        type: {
+            sheetUrl: string;
+            x: number;
+            y: number;
+        };
+    }[];
 }

@@ -173,6 +173,15 @@ export class CanvasRenderer extends Renderer {
         let ctx = this.context;
         ctx.clearRect(0, 0, cvs.width, cvs.height);
 
+// // TEST - Clip Half
+//         ctx.beginPath();
+//         ctx.moveTo(0, 0);
+//         ctx.lineTo(cvs.width * 0.5, 0);
+//         ctx.lineTo(cvs.width * 0.5, cvs.height);
+//         ctx.lineTo(0, cvs.height);
+//         ctx.lineTo(0, 0);
+//         ctx.clip();
+
         let xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
         let yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
 

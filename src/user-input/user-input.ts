@@ -30,6 +30,8 @@ export enum UserInputType {
     MultipleEndAfter,
 }
 
+const TILE_Y_OFFSET = 0.3;
+
 export function getTilesAtInput(map: Map, input: UserInput) {
     if (input.tilesUnder) {
         return { tilesUnder: input.tilesUnder, tileItemsUnder: input.tileItemsUnder };
@@ -43,6 +45,8 @@ export function getTilesAtInput(map: Map, input: UserInput) {
     let tw = map.tileWidth;
     let th = map.tileHeight;
 
+    let tyo = TILE_Y_OFFSET * th;
+
     for (let i = 0; i < map.tiles.length; i++) {
         let column = map.tiles[i];
         for (let j = 0; j < column.length; j++) {
@@ -50,7 +54,7 @@ export function getTilesAtInput(map: Map, input: UserInput) {
             let isTileUnder = false;
 
             if (tile.x <= x && tile.x + tw >= x
-                && tile.y <= y && tile.y + th >= y
+                && tile.y - tyo <= y && tile.y - tyo + th >= y
             ) {
                 tilesUnder.push(tile);
                 isTileUnder = true;
@@ -88,11 +92,12 @@ export function getNearestTile(map: Map, tilesUnder: Tile[], input: UserInput) {
     return tilesUnder.map(t => ({
         t,
         dx: t.x + map.tileWidth * 0.5 - input.x,
-        dy: t.y + map.tileHeight * 0.5 - input.y
+        dy: t.y + map.tileHeight * (0.5 - TILE_Y_OFFSET) - input.y
     })).map(t => ({ distSqr: t.dx * t.dx + t.dy * t.dy, ...t }))
         .reduce((out, t) => out.distSqr < t.distSqr ? out : t)
         .t;
 }
+
 
 export enum NearestTileMode {
     AnyTop,
@@ -131,6 +136,34 @@ export function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput,
         })).map(t => ({ distSqr: t.dx * t.dx + t.dy * t.dy, ...t }))
         .reduce((out, t) => out.distSqr < t.distSqr ? out : t)
         .t;
+}
+
+export enum TargetTileItemMode {
+    SelectByBase,
+    SelectByTop,
+    SelectByBaseOrTop
+}
+
+export function getTargetTileItem(map: Map, input: UserInput, mode: TargetTileItemMode) {
+
+    let { tilesUnder, tileItemsUnder } = getTilesAtInput(map, input);
+
+    let nearestTile = getNearestTile(map, tilesUnder, input);
+
+    let exceptMoving = tileItemsUnder.filter(t => t !== movingTileItem);
+    let nearestTileItem = getNearestTileItem(exceptMoving, input);
+
+    let n: TileItem[] = [];
+    if (mode !== TargetTileItemMode.SelectByTop && nearestTile) {
+        n.push(...nearestTile.stack);
+    }
+
+    if (mode !== TargetTileItemMode.SelectByBase && nearestTileItem) {
+        n.push(nearestTileItem);
+    }
+
+    let nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
+    return nearestOfAll;
 }
 
 let highlightedTileItems: TileItem[];
@@ -181,60 +214,20 @@ export class TileHighlighter {
         this.oldTileItemsUnder = [];
         highlightedTileItems = [];
 
-        if (movingTileItem) {
+        let selectedItem = getTargetTileItem(this.map, input, movingTileItem === null ? TargetTileItemMode.SelectByTop : TargetTileItemMode.SelectByTop);
+        if (selectedItem == null) { return; }
 
-            let nearestTile = getNearestTile(this.map, tilesUnder, input);
+        let stack = selectedItem.tile.stack;
 
-            let exceptMoving = tileItemsUnder.filter(t => t !== movingTileItem);
-            let nearestTileItem = getNearestTileItem(exceptMoving, input);
-
-            let n: TileItem[] = [];
-            if (nearestTile) {
-                n.push(...nearestTile.stack);
-            }
-
-            if (nearestTileItem) {
-                n.push(nearestTileItem);
-            }
-
-            let nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
-
-            if (nearestOfAll) {
-                let stack = nearestOfAll.tile.stack;
-                let k = 0;
-                for (let t of stack) {
-                    t.shouldHighlight = true;
-                    t.shouldBringToFront = true;
-                    // t.shouldBringToFront = k > 0;
-                    this.oldTileItemsUnder.push(t);
-                    highlightedTileItems.push(t);
-                    k++;
-                }
-            }
-
-            // if (nearestTile) {
-            //     for (let t of nearestTile.stack) {
-            //         t.shouldHighlight = true;
-            //         this.oldTileItemsUnder.push(t);
-            //     }
-            // }
-        } else {
-            let nearestTileItem = getNearestTileItem(tileItemsUnder, input);
-            if (nearestTileItem) {
-                let stack = nearestTileItem.tile.stack;
-                let k = 0;
-                for (let t of stack) {
-                    t.shouldHighlight = true;
-                    t.shouldBringToFront = k > 0;
-                    this.oldTileItemsUnder.push(t);
-                    highlightedTileItems.push(t);
-                    k++;
-                }
-                // nearestTileItem.shouldHighlight = true;
-                // nearestTileItem.shouldBringToFront = nearestTileItem.tile.stack.indexOf(nearestTileItem) > 0;
-                // this.oldTileItemsUnder = [nearestTileItem];
-                // highlightedTileItems = [nearestTileItem];
-            }
+        let k = 0;
+        for (let t of stack) {
+            t.shouldHighlight = true;
+            // t.shouldBringToFront = k > 0 && movingTileItem != null;
+            // t.shouldBringToFront = movingTileItem != null ? k > 0 : true;
+            t.shouldBringToFront = k > 0;
+            this.oldTileItemsUnder.push(t);
+            highlightedTileItems.push(t);
+            k++;
         }
 
     }
@@ -294,29 +287,34 @@ export class TileMover {
         if (!this.activeTileItem) {
             if (input.type !== UserInputType.Start) { return; }
 
-            let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            let nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
-            if (!nearestTileItem) { return; }
+            // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+            // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+            // if (!target) { return; }
+
+            let target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
+            if (!target || target.tile.stack.length === 1) { return; }
 
             if (this.shouldClone) {
-                nearestTileItem = { ...nearestTileItem };
+                target = { ...target };
                 // nearestTileItem.tile.stack.push(nearestTileItem);
-                this.map.tileItems_floating.push(nearestTileItem);
-                nearestTileItem.tile = null;
+                this.map.tileItems_floating.push(target);
+                target.tile = null;
             }
 
-            this.activeTileItem = nearestTileItem;
+            this.activeTileItem = target;
             this.dxStart = this.activeTileItem.x - input.x;
             this.dyStart = this.activeTileItem.y - input.y;
             this.xStart = this.activeTileItem.x;
             this.yStart = this.activeTileItem.y;
             this.zStart = this.activeTileItem.zIndex;
 
-            this.previewTileItem = { ...nearestTileItem };
+            this.previewTileItem = { ...target };
             this.previewTileItem.tile = null;
-            this.previewTileItem.opacity = 0.3;
+            this.previewTileItem.opacity = 0.75;
             this.previewTileItem.shouldHighlight = true;
             this.previewTileItem.shouldBringToFront = true;
+
+            this.map.tileItems_floating.push(this.previewTileItem);
         }
 
         // Move Tile
@@ -325,20 +323,24 @@ export class TileMover {
         this.activeTileItem.shouldHighlight = true;
         this.activeTileItem.shouldBringToFront = true;
         this.activeTileItem.zIndex = 10000;
-        this.activeTileItem.opacity = 0.5;
+        // this.activeTileItem.opacity = 0.5;
+        this.activeTileItem.opacity = 0.0;
 
         // Show Preview
         let oldTile = this.activeTileItem.tile;
         let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
 
         if (oldTile && tilesUnder.some(t => t === oldTile)) {
-            this.removeFromFloating(this.previewTileItem);
+            // this.removeFromFloating(this.previewTileItem);
+            this.previewTileItem.x = this.xStart;
+            this.previewTileItem.y = this.yStart;
+            this.previewTileItem.zIndex = this.zStart;
         } else {
             let newTileItem = getNearestTileItem(highlightedTileItems.filter(x => x !== this.activeTileItem), input);
             if (newTileItem == null) { return; }
             let newTile = newTileItem.tile;
             this.setPositionFromTileTop(this.previewTileItem, newTile);
-            this.map.tileItems_floating.push(this.previewTileItem);
+            // this.map.tileItems_floating.push(this.previewTileItem);
         }
 
         // Drop

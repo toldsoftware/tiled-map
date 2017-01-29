@@ -54,7 +54,7 @@
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, r, viewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, mode, animate;
+	        var map, spriteSheet, r, viewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, mode, animate;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -68,10 +68,14 @@
 	                        83, new kenney_xml_loader_1.KenneyXmlLoader(), tiled_map_1.MapShape.Isometric, 128 + 4, 64 + 2)];
 	                case 1:
 	                    map = _a.sent();
+	                    return [4 /*yield*/, loader_1.loadSpriteSheet('./kenney-isometric/landscapeTiles_sheet.png', './kenney-isometric/landscapeTiles_sheet.xml', map.defaultSprite, new kenney_xml_loader_1.KenneyXmlLoader(), tiled_map_1.MapShape.Isometric, 128 + 4, 64 + 2, './saves/landscape_layout.json')];
+	                case 2:
+	                    spriteSheet = _a.sent();
+	                    map = spriteSheet.layoutMap;
 	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
 	                    viewPort = new tiled_map_1.ViewPort();
-	                    viewPort.xLeft = -800;
-	                    viewPort.xRight = 2400;
+	                    viewPort.xLeft = -1600;
+	                    viewPort.xRight = 1600;
 	                    viewPort.yTop = -900;
 	                    viewPort.yBottom = 900;
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
@@ -95,7 +99,7 @@
 	                        //     return;
 	                        // }
 	                        if (input.isMultiple) {
-	                            console.log('Input Multiple type=', input.type, input);
+	                            // console.log('Input Multiple type=', input.type, input);
 	                            if (input.type === user_input_1.UserInputType.ChangeToMultipleStart) {
 	                                // Cancel any actions started
 	                                viewportScroller.cancel();
@@ -107,7 +111,7 @@
 	                            viewportMultiTouchScroller.handleInput(input);
 	                            return;
 	                        }
-	                        console.log('Input Single', input.type, input);
+	                        // console.log('Input Single', input.type, input);
 	                        viewportMover.handleInput(input);
 	                        if (viewportMover.isDragging) {
 	                            tileHighlighter.cancel();
@@ -763,6 +767,14 @@
 	        var cvs = this.canvas;
 	        var ctx = this.context;
 	        ctx.clearRect(0, 0, cvs.width, cvs.height);
+	        // // TEST - Clip Half
+	        //         ctx.beginPath();
+	        //         ctx.moveTo(0, 0);
+	        //         ctx.lineTo(cvs.width * 0.5, 0);
+	        //         ctx.lineTo(cvs.width * 0.5, cvs.height);
+	        //         ctx.lineTo(0, cvs.height);
+	        //         ctx.lineTo(0, 0);
+	        //         ctx.clip();
 	        var xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
 	        var yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
 	        // TODO: Is blocking highlight
@@ -902,6 +914,7 @@
 	    UserInputType[UserInputType["MultipleEnd"] = 5] = "MultipleEnd";
 	    UserInputType[UserInputType["MultipleEndAfter"] = 6] = "MultipleEndAfter";
 	})(UserInputType = exports.UserInputType || (exports.UserInputType = {}));
+	var TILE_Y_OFFSET = 0.3;
 	function getTilesAtInput(map, input) {
 	    if (input.tilesUnder) {
 	        return { tilesUnder: input.tilesUnder, tileItemsUnder: input.tileItemsUnder };
@@ -912,13 +925,14 @@
 	    var y = input.y;
 	    var tw = map.tileWidth;
 	    var th = map.tileHeight;
+	    var tyo = TILE_Y_OFFSET * th;
 	    for (var i = 0; i < map.tiles.length; i++) {
 	        var column = map.tiles[i];
 	        for (var j = 0; j < column.length; j++) {
 	            var tile = column[j];
 	            var isTileUnder = false;
 	            if (tile.x <= x && tile.x + tw >= x
-	                && tile.y <= y && tile.y + th >= y) {
+	                && tile.y - tyo <= y && tile.y - tyo + th >= y) {
 	                tilesUnder.push(tile);
 	                isTileUnder = true;
 	            }
@@ -944,7 +958,7 @@
 	    return tilesUnder.map(function (t) { return ({
 	        t: t,
 	        dx: t.x + map.tileWidth * 0.5 - input.x,
-	        dy: t.y + map.tileHeight * 0.5 - input.y
+	        dy: t.y + map.tileHeight * (0.5 - TILE_Y_OFFSET) - input.y
 	    }); }).map(function (t) { return (tslib_1.__assign({ distSqr: t.dx * t.dx + t.dy * t.dy }, t)); })
 	        .reduce(function (out, t) { return out.distSqr < t.distSqr ? out : t; })
 	        .t;
@@ -985,6 +999,28 @@
 	        .t;
 	}
 	exports.getNearestTileItem = getNearestTileItem;
+	var TargetTileItemMode;
+	(function (TargetTileItemMode) {
+	    TargetTileItemMode[TargetTileItemMode["SelectByBase"] = 0] = "SelectByBase";
+	    TargetTileItemMode[TargetTileItemMode["SelectByTop"] = 1] = "SelectByTop";
+	    TargetTileItemMode[TargetTileItemMode["SelectByBaseOrTop"] = 2] = "SelectByBaseOrTop";
+	})(TargetTileItemMode = exports.TargetTileItemMode || (exports.TargetTileItemMode = {}));
+	function getTargetTileItem(map, input, mode) {
+	    var _a = getTilesAtInput(map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
+	    var nearestTile = getNearestTile(map, tilesUnder, input);
+	    var exceptMoving = tileItemsUnder.filter(function (t) { return t !== movingTileItem; });
+	    var nearestTileItem = getNearestTileItem(exceptMoving, input);
+	    var n = [];
+	    if (mode !== TargetTileItemMode.SelectByTop && nearestTile) {
+	        n.push.apply(n, nearestTile.stack);
+	    }
+	    if (mode !== TargetTileItemMode.SelectByBase && nearestTileItem) {
+	        n.push(nearestTileItem);
+	    }
+	    var nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
+	    return nearestOfAll;
+	}
+	exports.getTargetTileItem = getTargetTileItem;
 	var highlightedTileItems;
 	var TileHighlighter = (function () {
 	    function TileHighlighter(map) {
@@ -1026,46 +1062,21 @@
 	        this.oldTilesUnder = [];
 	        this.oldTileItemsUnder = [];
 	        highlightedTileItems = [];
-	        if (movingTileItem) {
-	            var nearestTile = getNearestTile(this.map, tilesUnder, input);
-	            var exceptMoving = tileItemsUnder.filter(function (t) { return t !== movingTileItem; });
-	            var nearestTileItem = getNearestTileItem(exceptMoving, input);
-	            var n = [];
-	            if (nearestTile) {
-	                n.push.apply(n, nearestTile.stack);
-	            }
-	            if (nearestTileItem) {
-	                n.push(nearestTileItem);
-	            }
-	            var nearestOfAll = getNearestTileItem(n, input, NearestTileMode.Any);
-	            if (nearestOfAll) {
-	                var stack = nearestOfAll.tile.stack;
-	                var k = 0;
-	                for (var _i = 0, stack_1 = stack; _i < stack_1.length; _i++) {
-	                    var t = stack_1[_i];
-	                    t.shouldHighlight = true;
-	                    t.shouldBringToFront = true;
-	                    // t.shouldBringToFront = k > 0;
-	                    this.oldTileItemsUnder.push(t);
-	                    highlightedTileItems.push(t);
-	                    k++;
-	                }
-	            }
+	        var selectedItem = getTargetTileItem(this.map, input, movingTileItem === null ? TargetTileItemMode.SelectByTop : TargetTileItemMode.SelectByTop);
+	        if (selectedItem == null) {
+	            return;
 	        }
-	        else {
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input);
-	            if (nearestTileItem) {
-	                var stack = nearestTileItem.tile.stack;
-	                var k = 0;
-	                for (var _b = 0, stack_2 = stack; _b < stack_2.length; _b++) {
-	                    var t = stack_2[_b];
-	                    t.shouldHighlight = true;
-	                    t.shouldBringToFront = k > 0;
-	                    this.oldTileItemsUnder.push(t);
-	                    highlightedTileItems.push(t);
-	                    k++;
-	                }
-	            }
+	        var stack = selectedItem.tile.stack;
+	        var k = 0;
+	        for (var _i = 0, stack_1 = stack; _i < stack_1.length; _i++) {
+	            var t = stack_1[_i];
+	            t.shouldHighlight = true;
+	            // t.shouldBringToFront = k > 0 && movingTileItem != null;
+	            // t.shouldBringToFront = movingTileItem != null ? k > 0 : true;
+	            t.shouldBringToFront = k > 0;
+	            this.oldTileItemsUnder.push(t);
+	            highlightedTileItems.push(t);
+	            k++;
 	        }
 	    };
 	    return TileHighlighter;
@@ -1112,28 +1123,31 @@
 	            if (input.type !== UserInputType.Start) {
 	                return;
 	            }
-	            var _a = getTilesAtInput(this.map, input), tilesUnder_1 = _a.tilesUnder, tileItemsUnder_1 = _a.tileItemsUnder;
-	            var nearestTileItem = getNearestTileItem(tileItemsUnder_1, input, NearestTileMode.TopExceptBottom);
-	            if (!nearestTileItem) {
+	            // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+	            // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+	            // if (!target) { return; }
+	            var target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
+	            if (!target || target.tile.stack.length === 1) {
 	                return;
 	            }
 	            if (this.shouldClone) {
-	                nearestTileItem = tslib_1.__assign({}, nearestTileItem);
+	                target = tslib_1.__assign({}, target);
 	                // nearestTileItem.tile.stack.push(nearestTileItem);
-	                this.map.tileItems_floating.push(nearestTileItem);
-	                nearestTileItem.tile = null;
+	                this.map.tileItems_floating.push(target);
+	                target.tile = null;
 	            }
-	            this.activeTileItem = nearestTileItem;
+	            this.activeTileItem = target;
 	            this.dxStart = this.activeTileItem.x - input.x;
 	            this.dyStart = this.activeTileItem.y - input.y;
 	            this.xStart = this.activeTileItem.x;
 	            this.yStart = this.activeTileItem.y;
 	            this.zStart = this.activeTileItem.zIndex;
-	            this.previewTileItem = tslib_1.__assign({}, nearestTileItem);
+	            this.previewTileItem = tslib_1.__assign({}, target);
 	            this.previewTileItem.tile = null;
-	            this.previewTileItem.opacity = 0.3;
+	            this.previewTileItem.opacity = 0.75;
 	            this.previewTileItem.shouldHighlight = true;
 	            this.previewTileItem.shouldBringToFront = true;
+	            this.map.tileItems_floating.push(this.previewTileItem);
 	        }
 	        // Move Tile
 	        this.activeTileItem.x = input.x + this.dxStart;
@@ -1141,12 +1155,16 @@
 	        this.activeTileItem.shouldHighlight = true;
 	        this.activeTileItem.shouldBringToFront = true;
 	        this.activeTileItem.zIndex = 10000;
-	        this.activeTileItem.opacity = 0.5;
+	        // this.activeTileItem.opacity = 0.5;
+	        this.activeTileItem.opacity = 0.0;
 	        // Show Preview
 	        var oldTile = this.activeTileItem.tile;
-	        var _b = getTilesAtInput(this.map, input), tilesUnder = _b.tilesUnder, tileItemsUnder = _b.tileItemsUnder;
+	        var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
 	        if (oldTile && tilesUnder.some(function (t) { return t === oldTile; })) {
-	            this.removeFromFloating(this.previewTileItem);
+	            // this.removeFromFloating(this.previewTileItem);
+	            this.previewTileItem.x = this.xStart;
+	            this.previewTileItem.y = this.yStart;
+	            this.previewTileItem.zIndex = this.zStart;
 	        }
 	        else {
 	            var newTileItem = getNearestTileItem(highlightedTileItems.filter(function (x) { return x !== _this.activeTileItem; }), input);
@@ -1155,7 +1173,6 @@
 	            }
 	            var newTile = newTileItem.tile;
 	            this.setPositionFromTileTop(this.previewTileItem, newTile);
-	            this.map.tileItems_floating.push(this.previewTileItem);
 	        }
 	        // Drop
 	        if (input.type === UserInputType.End) {
@@ -1665,6 +1682,105 @@
 	var tiled_map_1 = __webpack_require__(2);
 	src_1.setupBrowser();
 	var http = src_1.Platform.http();
+	function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSprite, spriteSheetLoader, shape, tileWidth, tileHeight, spriteSheetLayoutJsonUrl) {
+	    return tslib_1.__awaiter(this, void 0, void 0, function () {
+	        var image, metaDataText, spriteSheet, json, mapData, iMin, iMax, jMin, jMax, iRange, jRange, map, i, j, s, _a, xBottomCenter, yBottomCenter, zIndex, x, y, tile, tiles, _loop_1, _i, _b, t;
+	        return tslib_1.__generator(this, function (_c) {
+	            switch (_c.label) {
+	                case 0:
+	                    image = new Image();
+	                    image.src = spriteSheetImageUrl;
+	                    return [4 /*yield*/, http.request(spriteSheetMetaDataUrl)];
+	                case 1:
+	                    metaDataText = (_c.sent()).data;
+	                    spriteSheet = spriteSheetLoader.load(spriteSheetImageUrl, image, tileWidth, tileHeight, metaDataText);
+	                    if (!spriteSheetLayoutJsonUrl) return [3 /*break*/, 3];
+	                    return [4 /*yield*/, http.request(spriteSheetLayoutJsonUrl)];
+	                case 2:
+	                    json = (_c.sent()).data;
+	                    mapData = JSON.parse(json);
+	                    iMin = mapData.tiles.reduce(function (out, t) { return out < t.i ? out : t.i; }, mapData.tiles[0].i);
+	                    iMax = mapData.tiles.reduce(function (out, t) { return out > t.i ? out : t.i; }, mapData.tiles[0].i);
+	                    jMin = mapData.tiles.reduce(function (out, t) { return out < t.j ? out : t.j; }, mapData.tiles[0].j);
+	                    jMax = mapData.tiles.reduce(function (out, t) { return out > t.j ? out : t.j; }, mapData.tiles[0].j);
+	                    // Add border
+	                    iMin -= 20;
+	                    jMin -= 20;
+	                    iMax += 20;
+	                    jMax += 20;
+	                    iRange = iMax - iMin + 1;
+	                    jRange = jMax - jMin + 1;
+	                    map = {
+	                        iZero: Math.round(iRange * 0.5),
+	                        jZero: Math.round(jRange * 0.5),
+	                        shape: shape,
+	                        tileWidth: tileWidth,
+	                        tileHeight: tileHeight,
+	                        tiles: [],
+	                        tileItems_floating: [],
+	                        defaultSprite: defaultSprite
+	                    };
+	                    // Add Default Sprites
+	                    for (i = 0; i < iRange; i++) {
+	                        for (j = 0; j < jRange; j++) {
+	                            s = defaultSprite;
+	                            _a = getTilePosition(i, j, shape, tileWidth, tileHeight, map.iZero, map.jZero), xBottomCenter = _a.xBottomCenter, yBottomCenter = _a.yBottomCenter, zIndex = _a.zIndex;
+	                            x = xBottomCenter - s.width * 0.5;
+	                            y = yBottomCenter - s.height;
+	                            map.tiles[i] = map.tiles[i] || [];
+	                            tile = map.tiles[i][j] = map.tiles[i][j] || {
+	                                stack: [],
+	                                x: xBottomCenter - tileWidth * 0.5,
+	                                y: yBottomCenter - tileHeight,
+	                                zIndex: zIndex
+	                            };
+	                            tile.stack.push({
+	                                tile: tile,
+	                                sprite: s,
+	                                x: x,
+	                                y: y,
+	                                zIndex: zIndex,
+	                                opacity: 1,
+	                                shouldHighlight: false,
+	                                shouldBringToFront: false
+	                            });
+	                        }
+	                    }
+	                    tiles = mapData.tiles;
+	                    tiles.sort(function (a, b) { return a.k - b.k; });
+	                    _loop_1 = function (t) {
+	                        var i = t.i - iMin;
+	                        var j = t.j - jMin;
+	                        var k = t.k;
+	                        var s = spriteSheet.sprites.filter(function (s) { return s.xSheet === t.type.x && s.ySheet === t.type.y; })[0];
+	                        var _a = getTilePosition(i, j, shape, tileWidth, tileHeight, map.iZero, map.jZero), xBottomCenter = _a.xBottomCenter, yBottomCenter = _a.yBottomCenter, zIndex = _a.zIndex;
+	                        var x = xBottomCenter - s.width * 0.5;
+	                        var y = yBottomCenter - s.height;
+	                        var tile = map.tiles[i][j];
+	                        tile.stack[k] = {
+	                            tile: tile,
+	                            sprite: s,
+	                            x: x,
+	                            y: y - defaultSprite.stackHeight,
+	                            zIndex: zIndex + 0.1,
+	                            opacity: 1,
+	                            shouldHighlight: false,
+	                            shouldBringToFront: false
+	                        };
+	                    };
+	                    for (_i = 0, _b = mapData.tiles; _i < _b.length; _i++) {
+	                        t = _b[_i];
+	                        _loop_1(t);
+	                    }
+	                    // TODO: Fix the y position for the stacks
+	                    spriteSheet.layoutMap = map;
+	                    _c.label = 3;
+	                case 3: return [2 /*return*/, spriteSheet];
+	            }
+	        });
+	    });
+	}
+	exports.loadSpriteSheet = loadSpriteSheet;
 	function createMapWithSpriteSheetSamples(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSpriteIndex, spriteSheetLoader, shape, tileWidth, tileHeight) {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
 	        var map, iZero, jZero, image, metaDataText, spriteSheet, defaultSprite, i, j, s, _a, xBottomCenter, yBottomCenter, zIndex, x, y, tile, spriteCount, columns, rows, iSprite, i, j, s, _b, xBottomCenter, yBottomCenter, zIndex, x, y, tile;

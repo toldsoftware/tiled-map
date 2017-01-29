@@ -1,7 +1,7 @@
-import { Map, MapShape, ViewPort } from '../src/tiled-map';
+import { Map, MapShape, ViewPort, MapData } from '../src/tiled-map';
 import { KenneyXmlLoader } from '../src/sprite-sheet/kenney-xml-loader';
 import { CanvasRenderer } from '../src/renderer/canvas-renderer';
-import { createMapWithSpriteSheetSamples } from '../src/loader';
+import { createMapWithSpriteSheetSamples, loadSpriteSheet } from '../src/loader';
 import { UserInputType, TileMover, TileHighlighter, ViewportMover, ViewportScroller, ViewportResizer, ViewportMultiTouchScroller } from '../src/user-input/user-input';
 
 // TODO: Load a test map
@@ -20,11 +20,19 @@ async function load_async() {
         83,
         new KenneyXmlLoader(), MapShape.Isometric, 128 + 4, 64 + 2);
 
+    let spriteSheet = await loadSpriteSheet('./kenney-isometric/landscapeTiles_sheet.png',
+        './kenney-isometric/landscapeTiles_sheet.xml',
+        map.defaultSprite,
+        new KenneyXmlLoader(), MapShape.Isometric, 128 + 4, 64 + 2
+        , './saves/landscape_layout.json');
+
+    map = spriteSheet.layoutMap;
+
     let r = new CanvasRenderer(document.getElementById('host'));
 
     let viewPort = new ViewPort();
-    viewPort.xLeft = -800;
-    viewPort.xRight = 2400;
+    viewPort.xLeft = -1600;
+    viewPort.xRight = 1600;
     viewPort.yTop = -900;
     viewPort.yBottom = 900;
 
@@ -55,7 +63,7 @@ async function load_async() {
         // }
 
         if (input.isMultiple) {
-            console.log('Input Multiple type=', input.type, input);
+            // console.log('Input Multiple type=', input.type, input);
 
             if (input.type === UserInputType.ChangeToMultipleStart) {
                 // Cancel any actions started
@@ -70,7 +78,7 @@ async function load_async() {
             return;
         }
 
-        console.log('Input Single', input.type, input);
+        // console.log('Input Single', input.type, input);
 
         viewportMover.handleInput(input);
 
@@ -126,18 +134,6 @@ async function load_async() {
     console.log('load_async END');
 }
 
-interface MapData {
-    tiles: {
-        i: number;
-        j: number;
-        k: number;
-        type: {
-            sheetUrl: string;
-            x: number;
-            y: number;
-        }
-    }[];
-}
 
 function save(map: Map) {
     let data: MapData = {

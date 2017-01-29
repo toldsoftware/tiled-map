@@ -36,6 +36,12 @@ export declare enum NearestTileMode {
     Any = 3,
 }
 export declare function getNearestTileItem(tileItemsUnder: TileItem[], input: UserInput, mode?: NearestTileMode): TileItem;
+export declare enum TargetTileItemMode {
+    SelectByBase = 0,
+    SelectByTop = 1,
+    SelectByBaseOrTop = 2,
+}
+export declare function getTargetTileItem(map: Map, input: UserInput, mode: TargetTileItemMode): TileItem;
 export declare class TileHighlighter {
     private map;
     oldTilesUnder: Tile[];
