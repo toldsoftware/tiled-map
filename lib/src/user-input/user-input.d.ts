@@ -63,11 +63,10 @@ export declare class ViewportMover {
     private map;
     private viewPort;
     isDragging: boolean;
-    xStart: number;
-    yStart: number;
-    xLeftStart: number;
-    yTopStart: number;
+    uStart: number;
+    vStart: number;
     constructor(map: Map, viewPort: ViewPort);
+    cancel(): void;
     handleInput(input: UserInput): void;
 }
 export declare class ViewportScroller {
@@ -83,4 +82,26 @@ export declare class ViewportScroller {
     handleInput(input: UserInput): void;
     stop(): void;
     animate(): void;
+}
+export declare class ViewportResizer {
+    private map;
+    private viewPort;
+    private host;
+    constructor(map: Map, viewPort: ViewPort, host: {
+        height: number;
+        width: number;
+    });
+    resize(scaleRatio?: number, uOrigin?: number, vOrigin?: number): void;
+}
+export declare class ViewportMultiTouchScroller {
+    private map;
+    private viewPort;
+    private resizer;
+    multipleDistanceStart: number;
+    multipleUStart: number;
+    multipleVStart: number;
+    multipleU2Start: number;
+    multipleV2Start: number;
+    constructor(map: Map, viewPort: ViewPort, resizer: ViewportResizer);
+    handleInput(input: UserInput): void;
 }

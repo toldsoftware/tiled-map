@@ -24,21 +24,26 @@ export class CanvasRenderer extends Renderer {
     x2CanvasLast: number;
     y2CanvasLast: number;
 
+    width: number;
+    height: number;
+    onResize: () => void;
+    onZoom: (scaleRatio: number) => void;
 
     constructor(host: HTMLElement) {
         super();
         this.canvas = document.createElement('canvas');
         this.context = this.canvas.getContext('2d');
         host.appendChild(this.canvas);
-        // this.canvas.style.width = '100%';
-        // this.canvas.style.height = '100%';
-        this.canvas.width = host.clientWidth;
-        this.canvas.height = host.clientHeight;
 
-        window.addEventListener('resize', () => {
-            this.canvas.width = host.clientWidth;
-            this.canvas.height = host.clientHeight;
-        });
+        let resize = () => {
+            this.width = this.canvas.width = host.clientWidth;
+            this.height = this.canvas.height = host.clientHeight;
+            if (this.onResize) { this.onResize(); }
+        };
+
+        resize();
+        host.addEventListener('resize', () => resize());
+        window.addEventListener('resize', () => resize());
 
         this.canvas.addEventListener('mousedown', (e) => this.getInput(e, UserInputType.Start));
         this.canvas.addEventListener('touchstart', (e) => this.getInput(e, UserInputType.Start));
@@ -46,6 +51,19 @@ export class CanvasRenderer extends Renderer {
         window.addEventListener('touchmove', (e) => this.getInput(e, UserInputType.Move));
         window.addEventListener('mouseup', (e) => this.getInput(e, UserInputType.End));
         window.addEventListener('touchend', (e) => this.getInput(e, UserInputType.End));
+
+        window.addEventListener('mousewheel', (e) => {
+            if (!this.onZoom) { return; }
+
+            let amount = e.deltaY;
+
+            if (amount > 0) {
+                this.onZoom(1.1);
+            } else if (amount < 0) {
+                this.onZoom(0.8888);
+            }
+            console.log(e);
+        });
     }
 
     getInput(e: Event, type: UserInputType): false {

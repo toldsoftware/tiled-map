@@ -39,6 +39,10 @@
 - Make full screen
 - Support Multi-touch
 
+## 20:46-21:30
+
+- Improve UI
+
 ##
 
 - Add Piece Selection

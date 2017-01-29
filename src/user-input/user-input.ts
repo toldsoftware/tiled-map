@@ -281,6 +281,8 @@ export class TileMover {
         if (input.type === UserInputType.Move) { return; }
         // console.log('TileMover.handleInput input=', input);
 
+        if (!this.activeTileItem && input.type !== UserInputType.Start) { return; }
+
         if (!this.activeTileItem) {
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
             let nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
@@ -356,50 +358,50 @@ export class TileMover {
 
 export class ViewportMover {
     isDragging: boolean;
-    xStart: number;
-    yStart: number;
-    xLeftStart: number;
-    yTopStart: number;
+    uStart: number;
+    vStart: number;
 
     constructor(private map: Map, private viewPort: ViewPort) {
+    }
+
+    cancel() {
+        this.isDragging = false;
     }
 
     handleInput(input: UserInput) {
         if (input.type === UserInputType.Move) { return; }
         // console.log('TileMover.handleInput input=', input);
 
+        if (!this.isDragging && input.type !== UserInputType.Start) { return; }
+
         if (!this.isDragging) {
+
+            // Only valid if base tile
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
             let nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopIsBottom);
             if (!nearestTileItem) { return; }
 
             this.isDragging = true;
-            this.xStart = input.x;
-            this.yStart = input.y;
-            this.xLeftStart = this.viewPort.xLeft;
-            this.yTopStart = this.viewPort.yTop;
-
+            this.uStart = input.u;
+            this.vStart = input.v;
         }
 
-        let dx = input.x - this.xStart;
-        let dy = input.y - this.yStart;
-
-        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
+        let du = input.u - this.uStart;
+        let dv = input.v - this.vStart;
 
         let w = this.viewPort.xRight - this.viewPort.xLeft;
         let h = this.viewPort.yBottom - this.viewPort.yTop;
 
-        // Reduce jumping
-        // dx = Math.max(-2, Math.min(1, dx));
-        // dy = Math.max(-1, Math.min(1, dy));
-        // dx = Math.round(dx);
-        // dy = Math.round(dy);
+        let dx = du * w;
+        let dy = dv * h;
 
-        this.viewPort.xLeft = this.xLeftStart - dx;
-        this.viewPort.yTop = this.yTopStart - dy;
-
+        this.viewPort.xLeft -= dx;
+        this.viewPort.yTop -= dy;
         this.viewPort.xRight = this.viewPort.xLeft + w;
         this.viewPort.yBottom = this.viewPort.yTop + h;
+
+        this.uStart = input.u;
+        this.vStart = input.v;
 
         if (input.type === UserInputType.End) {
             this.isDragging = false;
@@ -485,5 +487,83 @@ export class ViewportScroller {
 
         cancelAnimationFrame(this.animationId);
         this.animationId = requestAnimationFrame(() => this.animate());
+    }
+}
+
+export class ViewportResizer {
+    constructor(private map: Map, private viewPort: ViewPort, private host: { height: number, width: number }) { }
+
+    resize(scaleRatio = 1, uOrigin = 0.5, vOrigin = 0.5) {
+        let w = this.viewPort.xRight - this.viewPort.xLeft;
+        let scale = w / this.host.width;
+        let h = this.host.height * scale;
+
+        if (scaleRatio !== 1) {
+            scale *= scaleRatio;
+            h = this.host.height * scale;
+            w = this.host.width * scale;
+        }
+
+        let wDiff = w - (this.viewPort.xRight - this.viewPort.xLeft);
+        let hDiff = h - (this.viewPort.yBottom - this.viewPort.yTop);
+
+        this.viewPort.xLeft -= wDiff * uOrigin;
+        this.viewPort.yTop -= hDiff * vOrigin;
+        this.viewPort.xRight += wDiff * (1 - uOrigin);
+        this.viewPort.yBottom += hDiff * (1 - vOrigin);
+    }
+}
+
+export class ViewportMultiTouchScroller {
+
+    multipleDistanceStart: number;
+    multipleUStart: number;
+    multipleVStart: number;
+    multipleU2Start: number;
+    multipleV2Start: number;
+
+    constructor(private map: Map, private viewPort: ViewPort, private resizer: ViewportResizer) { }
+
+    handleInput(input: UserInput) {
+        if (input.type === UserInputType.ChangeToMultipleStart) {
+            // Start Multiple
+            this.multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+            this.multipleUStart = input.u;
+            this.multipleVStart = input.v;
+            this.multipleU2Start = input.u2;
+            this.multipleV2Start = input.v2;
+        } else if (input.type === UserInputType.Drag || input.type === UserInputType.MultipleEndAfter || input.type === UserInputType.MultipleEnd) {
+
+            // Move (1 Nearest Finger)
+            let du = input.u - this.multipleUStart;
+            let dv = input.v - this.multipleVStart;
+            let du2 = input.u - this.multipleU2Start;
+            let dv2 = input.v - this.multipleV2Start;
+
+            du = Math.abs(du) < Math.abs(du2) ? du : du2;
+            dv = Math.abs(dv) < Math.abs(dv2) ? dv : dv2;
+
+            let dx = (this.viewPort.xRight - this.viewPort.xLeft) * du;
+            let dy = (this.viewPort.yBottom - this.viewPort.yTop) * dv;
+            this.viewPort.xLeft -= dx;
+            this.viewPort.yTop -= dy;
+            this.viewPort.xRight -= dx;
+            this.viewPort.yBottom -= dy;
+
+            this.multipleUStart = input.u;
+            this.multipleVStart = input.v;
+            this.multipleU2Start = input.u2;
+            this.multipleV2Start = input.v2;
+
+            // Scale (2 Finger)
+            if (input.inputCount > 1) {
+                let dist = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+
+                let scale = this.multipleDistanceStart / dist;
+                this.resizer.resize(scale, (input.u + input.u2) * 0.5, (input.v + input.v2) * 0.5);
+
+                this.multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+            }
+        }
     }
 }

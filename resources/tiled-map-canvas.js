@@ -54,7 +54,7 @@
 	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, host, r, viewPort, resize, tileHighlighter, tileMover, tileCloner, viewPortScroller, multipleDistanceStart, multipleUStart, multipleVStart, multipleU2Start, multipleV2Start, mode, animate;
+	        var map, r, viewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, mode, animate;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -68,48 +68,27 @@
 	                        83, new kenney_xml_loader_1.KenneyXmlLoader(), tiled_map_1.MapShape.Isometric, 128 + 4, 64 + 2)];
 	                case 1:
 	                    map = _a.sent();
-	                    host = document.getElementById('host');
-	                    r = new canvas_renderer_1.CanvasRenderer(host);
+	                    r = new canvas_renderer_1.CanvasRenderer(document.getElementById('host'));
 	                    viewPort = new tiled_map_1.ViewPort();
 	                    viewPort.xLeft = -100;
 	                    viewPort.yTop = -600;
 	                    viewPort.xRight = 1500;
 	                    viewPort.yBottom = 600;
-	                    resize = function (scaleRatio, uOrigin, vOrigin) {
-	                        if (scaleRatio === void 0) { scaleRatio = 1; }
-	                        if (uOrigin === void 0) { uOrigin = 0.5; }
-	                        if (vOrigin === void 0) { vOrigin = 0.5; }
-	                        var w = viewPort.xRight - viewPort.xLeft;
-	                        var scale = w / host.clientWidth;
-	                        var h = host.clientHeight * scale;
-	                        if (scaleRatio !== 1) {
-	                            scale *= scaleRatio;
-	                            h = host.clientHeight * scale;
-	                            w = host.clientWidth * scale;
-	                        }
-	                        var wDiff = w - (viewPort.xRight - viewPort.xLeft);
-	                        var hDiff = h - (viewPort.yBottom - viewPort.yTop);
-	                        viewPort.xLeft -= wDiff * uOrigin;
-	                        viewPort.yTop -= hDiff * vOrigin;
-	                        viewPort.xRight += wDiff * (1 - uOrigin);
-	                        viewPort.yBottom += hDiff * (1 - vOrigin);
-	                    };
-	                    window.addEventListener('resize', function () { return resize(); });
-	                    setTimeout(function () { return resize(); });
-	                    window.addEventListener('mousewheel', function (e) {
-	                        var amount = e.deltaY;
-	                        if (amount > 0) {
-	                            resize(1.1);
-	                        }
-	                        else if (amount < 0) {
-	                            resize(0.8888);
-	                        }
-	                        console.log(e);
-	                    });
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
 	                    tileMover = new user_input_1.TileMover(map, false);
 	                    tileCloner = new user_input_1.TileMover(map, true);
-	                    viewPortScroller = new user_input_1.ViewportScroller(map, viewPort);
+	                    viewportMover = new user_input_1.ViewportMover(map, viewPort);
+	                    viewportScroller = new user_input_1.ViewportScroller(map, viewPort);
+	                    viewportResizer = new user_input_1.ViewportResizer(map, viewPort, r);
+	                    viewportMultiTouchScroller = new user_input_1.ViewportMultiTouchScroller(map, viewPort, viewportResizer);
+	                    // Handle resize
+	                    r.onResize = function () {
+	                        viewportResizer.resize();
+	                    };
+	                    setTimeout(function () { return viewportResizer.resize(); });
+	                    r.onZoom = function (scaleRatio) {
+	                        viewportResizer.resize(scaleRatio);
+	                    };
 	                    mode = 0;
 	                    r.onInput = function (input) {
 	                        // if (input.isMultiple) {
@@ -119,53 +98,30 @@
 	                            console.log('Input Multiple type=', input.type, input);
 	                            if (input.type === user_input_1.UserInputType.ChangeToMultipleStart) {
 	                                // Cancel any actions started
-	                                viewPortScroller.cancel();
+	                                viewportScroller.cancel();
+	                                viewportMover.cancel();
 	                                tileHighlighter.cancel();
 	                                tileMover.cancel();
 	                                tileCloner.cancel();
-	                                // Start Multiple
-	                                multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
-	                                multipleUStart = input.u;
-	                                multipleVStart = input.v;
-	                                multipleU2Start = input.u2;
-	                                multipleV2Start = input.v2;
 	                            }
-	                            else if (input.type === user_input_1.UserInputType.Drag || input.type === user_input_1.UserInputType.MultipleEndAfter || input.type === user_input_1.UserInputType.MultipleEnd) {
-	                                // Move (1 Nearest Finger)
-	                                var du = input.u - multipleUStart;
-	                                var dv = input.v - multipleVStart;
-	                                var du2 = input.u - multipleU2Start;
-	                                var dv2 = input.v - multipleV2Start;
-	                                du = Math.abs(du) < Math.abs(du2) ? du : du2;
-	                                dv = Math.abs(dv) < Math.abs(dv2) ? dv : dv2;
-	                                var dx = (viewPort.xRight - viewPort.xLeft) * du;
-	                                var dy = (viewPort.yBottom - viewPort.yTop) * dv;
-	                                viewPort.xLeft -= dx;
-	                                viewPort.yTop -= dy;
-	                                viewPort.xRight -= dx;
-	                                viewPort.yBottom -= dy;
-	                                multipleUStart = input.u;
-	                                multipleVStart = input.v;
-	                                multipleU2Start = input.u2;
-	                                multipleV2Start = input.v2;
-	                                // Scale (2 Finger)
-	                                if (input.inputCount > 1) {
-	                                    var dist = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
-	                                    var scale = multipleDistanceStart / dist;
-	                                    resize(scale, (input.u + input.u2) * 0.5, (input.v + input.v2) * 0.5);
-	                                    multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
-	                                }
-	                            }
+	                            viewportMultiTouchScroller.handleInput(input);
 	                            return;
 	                        }
 	                        console.log('Input Single', input.type, input);
+	                        viewportMover.handleInput(input);
+	                        if (viewportMover.isDragging) {
+	                            tileHighlighter.cancel();
+	                            viewportScroller.cancel();
+	                            tileMover.cancel();
+	                            tileCloner.cancel();
+	                            return;
+	                        }
 	                        tileHighlighter.handleInput(input);
-	                        // viewPortMover.handleInput(input);
 	                        if (!(input.u < 0.2 && input.v > 0.8)) {
-	                            viewPortScroller.handleInput(input);
+	                            viewportScroller.handleInput(input);
 	                        }
 	                        else {
-	                            viewPortScroller.stop();
+	                            viewportScroller.cancel();
 	                        }
 	                        if (input.type === user_input_1.UserInputType.End
 	                            && input.duration < 1000
@@ -685,20 +641,35 @@
 	        _this.canvas = document.createElement('canvas');
 	        _this.context = _this.canvas.getContext('2d');
 	        host.appendChild(_this.canvas);
-	        // this.canvas.style.width = '100%';
-	        // this.canvas.style.height = '100%';
-	        _this.canvas.width = host.clientWidth;
-	        _this.canvas.height = host.clientHeight;
-	        window.addEventListener('resize', function () {
-	            _this.canvas.width = host.clientWidth;
-	            _this.canvas.height = host.clientHeight;
-	        });
+	        var resize = function () {
+	            _this.width = _this.canvas.width = host.clientWidth;
+	            _this.height = _this.canvas.height = host.clientHeight;
+	            if (_this.onResize) {
+	                _this.onResize();
+	            }
+	        };
+	        resize();
+	        host.addEventListener('resize', function () { return resize(); });
+	        window.addEventListener('resize', function () { return resize(); });
 	        _this.canvas.addEventListener('mousedown', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
 	        _this.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
 	        window.addEventListener('mousemove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
 	        window.addEventListener('touchmove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
 	        window.addEventListener('mouseup', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
 	        window.addEventListener('touchend', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
+	        window.addEventListener('mousewheel', function (e) {
+	            if (!_this.onZoom) {
+	                return;
+	            }
+	            var amount = e.deltaY;
+	            if (amount > 0) {
+	                _this.onZoom(1.1);
+	            }
+	            else if (amount < 0) {
+	                _this.onZoom(0.8888);
+	            }
+	            console.log(e);
+	        });
 	        return _this;
 	    }
 	    CanvasRenderer.prototype.getInput = function (e, type) {
@@ -1130,6 +1101,9 @@
 	            return;
 	        }
 	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.activeTileItem && input.type !== UserInputType.Start) {
+	            return;
+	        }
 	        if (!this.activeTileItem) {
 	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
 	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
@@ -1203,37 +1177,40 @@
 	        this.map = map;
 	        this.viewPort = viewPort;
 	    }
+	    ViewportMover.prototype.cancel = function () {
+	        this.isDragging = false;
+	    };
 	    ViewportMover.prototype.handleInput = function (input) {
 	        if (input.type === UserInputType.Move) {
 	            return;
 	        }
 	        // console.log('TileMover.handleInput input=', input);
+	        if (!this.isDragging && input.type !== UserInputType.Start) {
+	            return;
+	        }
 	        if (!this.isDragging) {
+	            // Only valid if base tile
 	            var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
 	            var nearestTileItem = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopIsBottom);
 	            if (!nearestTileItem) {
 	                return;
 	            }
 	            this.isDragging = true;
-	            this.xStart = input.x;
-	            this.yStart = input.y;
-	            this.xLeftStart = this.viewPort.xLeft;
-	            this.yTopStart = this.viewPort.yTop;
+	            this.uStart = input.u;
+	            this.vStart = input.v;
 	        }
-	        var dx = input.x - this.xStart;
-	        var dy = input.y - this.yStart;
-	        console.log(this.xLeftStart, this.xStart, input.x, dx, this.viewPort.xLeft);
+	        var du = input.u - this.uStart;
+	        var dv = input.v - this.vStart;
 	        var w = this.viewPort.xRight - this.viewPort.xLeft;
 	        var h = this.viewPort.yBottom - this.viewPort.yTop;
-	        // Reduce jumping
-	        // dx = Math.max(-2, Math.min(1, dx));
-	        // dy = Math.max(-1, Math.min(1, dy));
-	        // dx = Math.round(dx);
-	        // dy = Math.round(dy);
-	        this.viewPort.xLeft = this.xLeftStart - dx;
-	        this.viewPort.yTop = this.yTopStart - dy;
+	        var dx = du * w;
+	        var dy = dv * h;
+	        this.viewPort.xLeft -= dx;
+	        this.viewPort.yTop -= dy;
 	        this.viewPort.xRight = this.viewPort.xLeft + w;
 	        this.viewPort.yBottom = this.viewPort.yTop + h;
+	        this.uStart = input.u;
+	        this.vStart = input.v;
 	        if (input.type === UserInputType.End) {
 	            this.isDragging = false;
 	        }
@@ -1300,6 +1277,79 @@
 	    return ViewportScroller;
 	}());
 	exports.ViewportScroller = ViewportScroller;
+	var ViewportResizer = (function () {
+	    function ViewportResizer(map, viewPort, host) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	        this.host = host;
+	    }
+	    ViewportResizer.prototype.resize = function (scaleRatio, uOrigin, vOrigin) {
+	        if (scaleRatio === void 0) { scaleRatio = 1; }
+	        if (uOrigin === void 0) { uOrigin = 0.5; }
+	        if (vOrigin === void 0) { vOrigin = 0.5; }
+	        var w = this.viewPort.xRight - this.viewPort.xLeft;
+	        var scale = w / this.host.width;
+	        var h = this.host.height * scale;
+	        if (scaleRatio !== 1) {
+	            scale *= scaleRatio;
+	            h = this.host.height * scale;
+	            w = this.host.width * scale;
+	        }
+	        var wDiff = w - (this.viewPort.xRight - this.viewPort.xLeft);
+	        var hDiff = h - (this.viewPort.yBottom - this.viewPort.yTop);
+	        this.viewPort.xLeft -= wDiff * uOrigin;
+	        this.viewPort.yTop -= hDiff * vOrigin;
+	        this.viewPort.xRight += wDiff * (1 - uOrigin);
+	        this.viewPort.yBottom += hDiff * (1 - vOrigin);
+	    };
+	    return ViewportResizer;
+	}());
+	exports.ViewportResizer = ViewportResizer;
+	var ViewportMultiTouchScroller = (function () {
+	    function ViewportMultiTouchScroller(map, viewPort, resizer) {
+	        this.map = map;
+	        this.viewPort = viewPort;
+	        this.resizer = resizer;
+	    }
+	    ViewportMultiTouchScroller.prototype.handleInput = function (input) {
+	        if (input.type === UserInputType.ChangeToMultipleStart) {
+	            // Start Multiple
+	            this.multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+	            this.multipleUStart = input.u;
+	            this.multipleVStart = input.v;
+	            this.multipleU2Start = input.u2;
+	            this.multipleV2Start = input.v2;
+	        }
+	        else if (input.type === UserInputType.Drag || input.type === UserInputType.MultipleEndAfter || input.type === UserInputType.MultipleEnd) {
+	            // Move (1 Nearest Finger)
+	            var du = input.u - this.multipleUStart;
+	            var dv = input.v - this.multipleVStart;
+	            var du2 = input.u - this.multipleU2Start;
+	            var dv2 = input.v - this.multipleV2Start;
+	            du = Math.abs(du) < Math.abs(du2) ? du : du2;
+	            dv = Math.abs(dv) < Math.abs(dv2) ? dv : dv2;
+	            var dx = (this.viewPort.xRight - this.viewPort.xLeft) * du;
+	            var dy = (this.viewPort.yBottom - this.viewPort.yTop) * dv;
+	            this.viewPort.xLeft -= dx;
+	            this.viewPort.yTop -= dy;
+	            this.viewPort.xRight -= dx;
+	            this.viewPort.yBottom -= dy;
+	            this.multipleUStart = input.u;
+	            this.multipleVStart = input.v;
+	            this.multipleU2Start = input.u2;
+	            this.multipleV2Start = input.v2;
+	            // Scale (2 Finger)
+	            if (input.inputCount > 1) {
+	                var dist = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+	                var scale = this.multipleDistanceStart / dist;
+	                this.resizer.resize(scale, (input.u + input.u2) * 0.5, (input.v + input.v2) * 0.5);
+	                this.multipleDistanceStart = Math.sqrt((input.u2 - input.u) * (input.u2 - input.u) + (input.v2 - input.v) * (input.v2 - input.v));
+	            }
+	        }
+	    };
+	    return ViewportMultiTouchScroller;
+	}());
+	exports.ViewportMultiTouchScroller = ViewportMultiTouchScroller;
 
 
 /***/ },
