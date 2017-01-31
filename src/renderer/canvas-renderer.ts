@@ -14,8 +14,8 @@ export class CanvasRenderer extends Renderer {
     isInputDown = false;
     inputDownStart: number;
 
-    lastViewPort: ViewPort;
-    lastViewPortValues: ViewPort;
+    lastViewport: ViewPort;
+    lastViewportValues: ViewPort;
 
     xCanvasLast: number;
     yCanvasLast: number;
@@ -68,7 +68,7 @@ export class CanvasRenderer extends Renderer {
     }
 
     getInput(e: Event, type: UserInputType): false {
-        if (this.lastViewPort == null || this.onInput == null) { return; }
+        if (this.lastViewport == null || this.onInput == null) { return; }
         // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
 
         let origType = type;
@@ -121,13 +121,13 @@ export class CanvasRenderer extends Renderer {
         // Scale for viewPort
         let u = (xCanvas / this.canvas.width);
         let v = (yCanvas / this.canvas.height);
-        let x = this.lastViewPort.xLeft + u * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
-        let y = this.lastViewPort.yTop + v * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+        let x = this.lastViewport.xLeft + u * (this.lastViewport.xRight - this.lastViewport.xLeft);
+        let y = this.lastViewport.yTop + v * (this.lastViewport.yBottom - this.lastViewport.yTop);
 
         let u2 = (x2Canvas / this.canvas.width);
         let v2 = (y2Canvas / this.canvas.height);
-        let x2 = this.lastViewPort.xLeft + u2 * (this.lastViewPort.xRight - this.lastViewPort.xLeft);
-        let y2 = this.lastViewPort.yTop + v2 * (this.lastViewPort.yBottom - this.lastViewPort.yTop);
+        let x2 = this.lastViewport.xLeft + u2 * (this.lastViewport.xRight - this.lastViewport.xLeft);
+        let y2 = this.lastViewport.yTop + v2 * (this.lastViewport.yBottom - this.lastViewport.yTop);
 
         if (type === UserInputType.Move && this.isInputDown) {
             type = UserInputType.Drag;
@@ -169,19 +169,25 @@ export class CanvasRenderer extends Renderer {
         ctx.clearRect(0, 0, cvs.width, cvs.height);
     }
 
-    drawItems(sprites: SpriteInstance[], viewPort: ViewPort) {
-        this.lastViewPort = viewPort;
+    drawItems(sprites: SpriteInstance[], viewport: ViewPort) {
+        this.lastViewport = viewport;
 
         let shouldDrawOnlyDirty = true;
 
-        if (!this.lastViewPortValues
-            || this.lastViewPortValues.xLeft !== viewPort.xLeft
-            || this.lastViewPortValues.yTop !== viewPort.yTop
+        if (!this.lastViewportValues
+            || this.lastViewportValues.xLeft !== viewport.xLeft
+            || this.lastViewportValues.xRight !== viewport.xRight
+            || this.lastViewportValues.yBottom !== viewport.yBottom
+            || this.lastViewportValues.yTop !== viewport.yTop
+            || this.lastViewportValues.clip_uLeft !== viewport.clip_uLeft
+            || this.lastViewportValues.clip_uRight !== viewport.clip_uRight
+            || this.lastViewportValues.clip_vBottom !== viewport.clip_vBottom
+            || this.lastViewportValues.clip_vTop !== viewport.clip_vTop
         ) {
             shouldDrawOnlyDirty = false;
         }
 
-        this.lastViewPortValues = { ...viewPort };
+        this.lastViewportValues = { ...viewport };
 
         const OVER_SIZE = 4;
         const OVER_SIZE2 = 8;
@@ -191,10 +197,10 @@ export class CanvasRenderer extends Renderer {
         let ctx = this.context;
 
         // Clip Half
-        let wClip = cvs.width * (viewPort.clip_uRight - viewPort.clip_uLeft);
-        let hClip = cvs.height * (viewPort.clip_vBottom - viewPort.clip_vTop);
-        let xClip = cvs.width * viewPort.clip_uLeft;
-        let yClip = cvs.height * viewPort.clip_vTop;
+        let wClip = cvs.width * (viewport.clip_uRight - viewport.clip_uLeft);
+        let hClip = cvs.height * (viewport.clip_vBottom - viewport.clip_vTop);
+        let xClip = cvs.width * viewport.clip_uLeft;
+        let yClip = cvs.height * viewport.clip_vTop;
 
 
         ctx.save();
@@ -208,11 +214,11 @@ export class CanvasRenderer extends Renderer {
 
         // ctx.clearRect(xClip, yClip, wClip, hClip);
 
-        let xScale = wClip / (viewPort.xRight - viewPort.xLeft);
-        let yScale = hClip / (viewPort.yBottom - viewPort.yTop);
+        let xScale = wClip / (viewport.xRight - viewport.xLeft);
+        let yScale = hClip / (viewport.yBottom - viewport.yTop);
         // TODO - Adjust
-        let xLeft = viewPort.xLeft;
-        let yTop = viewPort.yTop;
+        let xLeft = viewport.xLeft;
+        let yTop = viewport.yTop;
 
         // TODO: Is blocking highlight
         // let hasHighlight = sprites.some(s => s.shouldHighlight);

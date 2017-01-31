@@ -7,8 +7,8 @@ export declare class CanvasRenderer extends Renderer {
     onInput: (input: UserInput) => void;
     isInputDown: boolean;
     inputDownStart: number;
-    lastViewPort: ViewPort;
-    lastViewPortValues: ViewPort;
+    lastViewport: ViewPort;
+    lastViewportValues: ViewPort;
     xCanvasLast: number;
     yCanvasLast: number;
     isMultipleLast: boolean;
@@ -22,5 +22,5 @@ export declare class CanvasRenderer extends Renderer {
     constructor(host: HTMLElement);
     getInput(e: Event, type: UserInputType): false;
     clear(): void;
-    drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
+    drawItems(sprites: SpriteInstance[], viewport: ViewPort): void;
 }
