@@ -6,8 +6,8 @@ export interface CanvasBuffer {
     context: CanvasRenderingContext2D;
 }
 export declare class CanvasRenderer extends Renderer {
-    canvas: HTMLCanvasElement;
-    context: CanvasRenderingContext2D;
+    finalBuffer: CanvasBuffer;
+    mainBuffer: CanvasBuffer;
     highlightBuffer: CanvasBuffer;
     onInput: (input: UserInput) => void;
     isInputDown: boolean;
@@ -27,5 +27,5 @@ export declare class CanvasRenderer extends Renderer {
     constructor(host: HTMLElement);
     getInput(e: Event, type: UserInputType, isTouch?: boolean): false;
     clear(): void;
-    drawItems(sprites: SpriteInstance[], viewport: ViewPort): void;
+    drawItems(sprites: SpriteInstance[], viewport: ViewPort, tileWidth: number, tileHeight: number): void;
 }

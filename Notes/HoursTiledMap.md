@@ -62,6 +62,18 @@
 			- This would cause a whole pyramid to redraw
 			- Solution: Redraw all overlapping tiles with clipping to the original area (so only items within the clip matter)
 
+# 2017-01-31
+## 7:00-9:00
+
+- Improve UX
+- Use Highlight (Bring to Front) Buffer
+
+## 9:01-10:45
+
+- iOS is causing artifacts from rounding to pixel
+- START Pixel Perfect Draw 
+	
+
 ##
 
 	- Draw past the screen edge a bit for re-use for scrolling & zooming

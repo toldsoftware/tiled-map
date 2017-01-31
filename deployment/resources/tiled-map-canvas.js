@@ -2809,13 +2809,13 @@ var CanvasRenderer = (function (_super) {
     function CanvasRenderer(host) {
         var _this = _super.call(this) || this;
         _this.isInputDown = false;
-        _this.canvas = document.createElement('canvas');
-        _this.context = _this.canvas.getContext('2d');
-        host.appendChild(_this.canvas);
+        _this.finalBuffer = createBuffer();
+        host.appendChild(_this.finalBuffer.canvas);
+        _this.mainBuffer = _this.finalBuffer;
         _this.highlightBuffer = createBuffer();
         var resize = function () {
-            _this.width = _this.highlightBuffer.canvas.width = _this.canvas.width = host.clientWidth;
-            _this.height = _this.highlightBuffer.canvas.height = _this.canvas.height = host.clientHeight;
+            _this.width = _this.finalBuffer.canvas.width = host.clientWidth;
+            _this.height = _this.finalBuffer.canvas.height = host.clientHeight;
             // Trigger redraw all
             _this.lastViewportValues = null;
             if (_this.onResize) {
@@ -2825,8 +2825,8 @@ var CanvasRenderer = (function (_super) {
         resize();
         host.addEventListener('resize', function () { return resize(); });
         window.addEventListener('resize', function () { return resize(); });
-        _this.canvas.addEventListener('mousedown', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
-        _this.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start, true); });
+        _this.finalBuffer.canvas.addEventListener('mousedown', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
+        _this.finalBuffer.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start, true); });
         window.addEventListener('mousemove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
         window.addEventListener('touchmove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move, true); });
         window.addEventListener('mouseup', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
@@ -2855,7 +2855,8 @@ var CanvasRenderer = (function (_super) {
         var origType = type;
         var xCanvas = this.xCanvasLast;
         var yCanvas = this.yCanvasLast;
-        var rect = this.canvas.getBoundingClientRect();
+        var cvs = this.finalBuffer.canvas;
+        var rect = cvs.getBoundingClientRect();
         var me = e;
         var te = e;
         var isMultiple = false;
@@ -2891,12 +2892,12 @@ var CanvasRenderer = (function (_super) {
         this.y2CanvasLast = y2Canvas;
         this.isMultipleLast = isMultiple;
         // Scale for viewPort
-        var u = (xCanvas / this.canvas.width);
-        var v = (yCanvas / this.canvas.height);
+        var u = (xCanvas / cvs.width);
+        var v = (yCanvas / cvs.height);
         var x = this.lastViewport.xLeft + u * (this.lastViewport.xRight - this.lastViewport.xLeft);
         var y = this.lastViewport.yTop + v * (this.lastViewport.yBottom - this.lastViewport.yTop);
-        var u2 = (x2Canvas / this.canvas.width);
-        var v2 = (y2Canvas / this.canvas.height);
+        var u2 = (x2Canvas / cvs.width);
+        var v2 = (y2Canvas / cvs.height);
         var x2 = this.lastViewport.xLeft + u2 * (this.lastViewport.xRight - this.lastViewport.xLeft);
         var y2 = this.lastViewport.yTop + v2 * (this.lastViewport.yBottom - this.lastViewport.yTop);
         if (type === user_input_1.UserInputType.Move && this.isInputDown) {
@@ -2931,11 +2932,16 @@ var CanvasRenderer = (function (_super) {
         return false;
     };
     CanvasRenderer.prototype.clear = function () {
-        var cvs = this.canvas;
-        var ctx = this.context;
+        var cvs = this.finalBuffer.canvas;
+        var ctx = this.finalBuffer.context;
         ctx.clearRect(0, 0, cvs.width, cvs.height);
+        if (this.finalBuffer !== this.mainBuffer) {
+            cvs = this.mainBuffer.canvas;
+            ctx = this.mainBuffer.context;
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+        }
     };
-    CanvasRenderer.prototype.drawItems = function (sprites, viewport) {
+    CanvasRenderer.prototype.drawItems = function (sprites, viewport, tileWidth, tileHeight) {
         this.lastViewport = viewport;
         var shouldDrawOnlyDirty = true;
         if (!this.lastViewportValues
@@ -2953,13 +2959,51 @@ var CanvasRenderer = (function (_super) {
         var OVER_SIZE = 4;
         var OVER_SIZE2 = 8;
         // Draw on the canvas context
-        var cvs = this.canvas;
-        var ctx = this.context;
-        // Clip Half
+        var cvs = this.mainBuffer.canvas;
+        var ctx = this.mainBuffer.context;
+        // TEST iOS
+        var roundToPixels = false;
+        // Clip
         var wClip = cvs.width * (viewport.clip_uRight - viewport.clip_uLeft);
         var hClip = cvs.height * (viewport.clip_vBottom - viewport.clip_vTop);
         var xClip = cvs.width * viewport.clip_uLeft;
         var yClip = cvs.height * viewport.clip_vTop;
+        var viewportWidth = (viewport.xRight - viewport.xLeft);
+        var viewportHeight = (viewport.yBottom - viewport.yTop);
+        var xScale = wClip / viewportWidth;
+        var yScale = hClip / viewportHeight;
+        var xLeft = viewport.xLeft;
+        var yTop = viewport.yTop;
+        // TODO: Use pixel sensitive size
+        // let minScale = Math.min(xScale, yScale);
+        // let targetScale = 1;
+        // let nextTargetScale = 1;
+        // let f = 1;
+        // while (minScale < nextTargetScale) {
+        //     if (tileWidth * nextTargetScale === Math.round(tileWidth * nextTargetScale)
+        //         && tileHeight * nextTargetScale === Math.round(tileHeight * nextTargetScale)
+        //     ) {
+        //         targetScale = nextTargetScale;
+        //         console.log('f=', f, tileWidth * nextTargetScale, tileHeight * nextTargetScale);
+        //     }
+        //     f++;
+        //     nextTargetScale = 1.0 / f;
+        // }
+        // let targetViewportWidth = Math.ceil(viewportWidth * targetScale);
+        // let targetViewportHeight = Math.ceil(viewportHeight * targetScale);
+        // // TEST
+        // xScale = targetScale;
+        // yScale = targetScale;
+        // xLeft = Math.round(xLeft);
+        // yTop = Math.round(yTop);
+        // console.log('targetScale=', targetScale, minScale, sprites[0].sprite.width * targetScale, sprites[0].sprite.height * targetScale, targetViewportWidth, targetViewportHeight, viewportWidth, viewportHeight);
+        if (this.finalBuffer !== this.mainBuffer) {
+        }
+        if (this.highlightBuffer.canvas.width !== cvs.width
+            || this.highlightBuffer.canvas.width !== cvs.height) {
+            this.highlightBuffer.canvas.width = cvs.width;
+            this.highlightBuffer.canvas.height = cvs.height;
+        }
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(xClip, yClip);
@@ -2968,17 +3012,6 @@ var CanvasRenderer = (function (_super) {
         ctx.lineTo(xClip, yClip + hClip);
         ctx.lineTo(xClip, yClip);
         ctx.clip();
-        // ctx.clearRect(xClip, yClip, wClip, hClip);
-        var xScale = wClip / (viewport.xRight - viewport.xLeft);
-        var yScale = hClip / (viewport.yBottom - viewport.yTop);
-        // TODO - Adjust
-        var xLeft = viewport.xLeft;
-        var yTop = viewport.yTop;
-        // TODO: Is blocking highlight
-        // let hasHighlight = sprites.some(s => s.shouldHighlight);
-        // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
-        // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
-        // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
         var clipBorder = 10;
         var sAreas = sprites.map(function (s) { return ({
             sprite: s,
@@ -3025,6 +3058,13 @@ var CanvasRenderer = (function (_super) {
                 // ctx.rect(x, y, w, h);
                 // ctx.fillStyle = 'rgba(0,0,0,0.1)';
                 // ctx.fill();
+                // Round to Pixel (Creates Artifacts)
+                if (roundToPixels) {
+                    x = Math.round(x);
+                    y = Math.round(y);
+                    w = Math.round(w);
+                    h = Math.round(h);
+                }
                 var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
                 var overSize2 = 0; // overSize * 2;
                 ctx.globalAlpha = s.opacity;
@@ -3054,6 +3094,13 @@ var CanvasRenderer = (function (_super) {
                 var y = (s.y - yTop) * yScale;
                 var w = s.sprite.width * xScale;
                 var h = s.sprite.height * yScale;
+                // Round to Pixel
+                if (roundToPixels) {
+                    x = Math.round(x);
+                    y = Math.round(y);
+                    w = Math.round(w);
+                    h = Math.round(h);
+                }
                 if (s.shouldBringToFront) {
                     ctx.globalAlpha = s.opacity;
                     ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
@@ -3063,8 +3110,8 @@ var CanvasRenderer = (function (_super) {
             ctx.restore();
         }
         // Draw the highlight buffer onto the main canvas
-        cvs = this.canvas;
-        ctx = this.context;
+        cvs = this.mainBuffer.canvas;
+        ctx = this.mainBuffer.context;
         ctx.globalAlpha = 0.25;
         ctx.drawImage(this.highlightBuffer.canvas, 0, 0, cvs.width, cvs.height);
         ctx.globalAlpha = 1;
@@ -3079,6 +3126,9 @@ var CanvasRenderer = (function (_super) {
             s.yMaxClip_last = d.yMaxClip_new;
         }
         ctx.restore();
+        // TODO: Draw to final buffer
+        if (this.finalBuffer !== this.mainBuffer) {
+        }
     };
     return CanvasRenderer;
 }(renderer_1.Renderer));
@@ -3142,7 +3192,7 @@ var Renderer = (function () {
         //         zIndex: 100000,
         //     });
         // }
-        this.drawItems(visibleItems, viewPort);
+        this.drawItems(visibleItems, viewPort, map.tileWidth, map.tileHeight);
         // // DEBUG: Draw Grid
         // for (let i = -100; i < 100; i++) {
         //     let iSlope = map.shape === MapShape.Isometric ? 1 : 0;

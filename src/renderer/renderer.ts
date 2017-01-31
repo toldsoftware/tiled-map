@@ -1,7 +1,7 @@
 import { SpriteInstance, Map, ViewPort, MapShape } from '../tiled-map';
 
 export abstract class Renderer {
-    abstract drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
+    abstract drawItems(sprites: SpriteInstance[], viewPort: ViewPort, tileWidth: number, tileHeight: number): void;
     // abstract drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 
     draw(map: Map, viewPort: ViewPort) {
@@ -65,7 +65,7 @@ export abstract class Renderer {
 
         // }
 
-        this.drawItems(visibleItems, viewPort);
+        this.drawItems(visibleItems, viewPort, map.tileWidth, map.tileHeight);
 
 
         // // DEBUG: Draw Grid
