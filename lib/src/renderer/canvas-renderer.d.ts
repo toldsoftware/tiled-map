@@ -1,9 +1,14 @@
 import { Renderer } from './renderer';
 import { UserInput, UserInputType } from '../user-input/user-input';
 import { SpriteInstance, ViewPort } from '../tiled-map';
+export interface CanvasBuffer {
+    canvas: HTMLCanvasElement;
+    context: CanvasRenderingContext2D;
+}
 export declare class CanvasRenderer extends Renderer {
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
+    highlightBuffer: CanvasBuffer;
     onInput: (input: UserInput) => void;
     isInputDown: boolean;
     inputDownStart: number;
@@ -20,7 +25,7 @@ export declare class CanvasRenderer extends Renderer {
     onResize: () => void;
     onZoom: (scaleRatio: number) => void;
     constructor(host: HTMLElement);
-    getInput(e: Event, type: UserInputType): false;
+    getInput(e: Event, type: UserInputType, isTouch?: boolean): false;
     clear(): void;
     drawItems(sprites: SpriteInstance[], viewport: ViewPort): void;
 }

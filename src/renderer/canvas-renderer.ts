@@ -5,10 +5,23 @@ import { getImageEffect, ImageEffectKind } from './canvas-image-effect';
 
 const DEBUG = true;
 
+export interface CanvasBuffer {
+    canvas: HTMLCanvasElement;
+    context: CanvasRenderingContext2D;
+}
+
+function createBuffer() {
+    let canvas = document.createElement('canvas');
+    let context = canvas.getContext('2d');
+    return { canvas, context };
+}
+
 export class CanvasRenderer extends Renderer {
 
     canvas: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
+
+    highlightBuffer: CanvasBuffer;
 
     onInput: (input: UserInput) => void;
     isInputDown = false;
@@ -36,9 +49,15 @@ export class CanvasRenderer extends Renderer {
         this.context = this.canvas.getContext('2d');
         host.appendChild(this.canvas);
 
+        this.highlightBuffer = createBuffer();
+
         let resize = () => {
-            this.width = this.canvas.width = host.clientWidth;
-            this.height = this.canvas.height = host.clientHeight;
+            this.width = this.highlightBuffer.canvas.width = this.canvas.width = host.clientWidth;
+            this.height = this.highlightBuffer.canvas.height = this.canvas.height = host.clientHeight;
+
+            // Trigger redraw all
+            this.lastViewportValues = null;
+
             if (this.onResize) { this.onResize(); }
         };
 
@@ -47,11 +66,11 @@ export class CanvasRenderer extends Renderer {
         window.addEventListener('resize', () => resize());
 
         this.canvas.addEventListener('mousedown', (e) => this.getInput(e, UserInputType.Start));
-        this.canvas.addEventListener('touchstart', (e) => this.getInput(e, UserInputType.Start));
+        this.canvas.addEventListener('touchstart', (e) => this.getInput(e, UserInputType.Start, true));
         window.addEventListener('mousemove', (e) => this.getInput(e, UserInputType.Move));
-        window.addEventListener('touchmove', (e) => this.getInput(e, UserInputType.Move));
+        window.addEventListener('touchmove', (e) => this.getInput(e, UserInputType.Move, true));
         window.addEventListener('mouseup', (e) => this.getInput(e, UserInputType.End));
-        window.addEventListener('touchend', (e) => this.getInput(e, UserInputType.End));
+        window.addEventListener('touchend', (e) => this.getInput(e, UserInputType.End, true));
 
         window.addEventListener('mousewheel', (e) => {
             if (!this.onZoom) { return; }
@@ -67,7 +86,7 @@ export class CanvasRenderer extends Renderer {
         });
     }
 
-    getInput(e: Event, type: UserInputType): false {
+    getInput(e: Event, type: UserInputType, isTouch = false): false {
         if (this.lastViewport == null || this.onInput == null) { return; }
         // console.log('CanvasRenderer.getInput', e, this.onInput, this.lastViewPort);
 
@@ -148,7 +167,7 @@ export class CanvasRenderer extends Renderer {
 
         let duration = Date.now() - (this.inputDownStart || Date.now());
 
-        this.onInput({ x, y, type, duration, u, v, isMultiple, inputCount, u2, v2, x2, y2 });
+        this.onInput({ x, y, type, duration, u, v, isMultiple, inputCount, u2, v2, x2, y2, isTouch });
 
         if (origType === UserInputType.Start) {
             this.isInputDown = true;
@@ -309,6 +328,10 @@ export class CanvasRenderer extends Renderer {
         }
 
         // Draw Highlight above others
+        cvs = this.highlightBuffer.canvas;
+        ctx = this.highlightBuffer.context;
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+
         for (let i = 0; i < dirty.length; i++) {
             let d = dirty[i];
             ctx.save();
@@ -324,7 +347,7 @@ export class CanvasRenderer extends Renderer {
                 let h = s.sprite.height * yScale;
 
                 if (s.shouldBringToFront) {
-                    ctx.globalAlpha = 0.25 * s.opacity;
+                    ctx.globalAlpha = s.opacity;
                     ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
                     ctx.globalAlpha = 1;
                 }
@@ -332,6 +355,13 @@ export class CanvasRenderer extends Renderer {
 
             ctx.restore();
         }
+
+        // Draw the highlight buffer onto the main canvas
+        cvs = this.canvas;
+        ctx = this.context;
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(this.highlightBuffer.canvas, 0, 0, cvs.width, cvs.height);
+        ctx.globalAlpha = 1;
 
         // Reset is dirty
         for (let i = 0; i < dirty.length; i++) {

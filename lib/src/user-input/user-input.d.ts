@@ -6,6 +6,7 @@ export interface UserInput {
     x: number;
     y: number;
     type: UserInputType;
+    isTouch: boolean;
     isMultiple: boolean;
     inputCount: number;
     u2: number;
@@ -55,6 +56,7 @@ export declare class TileHighlighter {
 export declare class TileMover {
     private map;
     private shouldClone;
+    isWaiting: boolean;
     previewTileItem: TileItem;
     activeTileItem: TileItem;
     dxStart: number;

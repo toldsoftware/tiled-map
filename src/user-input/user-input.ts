@@ -8,6 +8,7 @@ export interface UserInput {
     x: number;
     y: number;
     type: UserInputType;
+    isTouch: boolean;
 
     isMultiple: boolean;
     inputCount: number;
@@ -237,6 +238,7 @@ let movingTileItem: TileItem;
 
 export class TileMover {
 
+    isWaiting: boolean;
     previewTileItem: TileItem;
     activeTileItem: TileItem;
     dxStart: number;
@@ -285,14 +287,37 @@ export class TileMover {
         // console.log('TileMover.handleInput input=', input);
 
         if (!this.activeTileItem) {
-            if (input.type !== UserInputType.Start) { return; }
+            if (input.type === UserInputType.Start) {
+                // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+                // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+                // if (!target) { return; }
 
-            // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
-            // if (!target) { return; }
+                let target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
+                if (!target || target.tile.stack.length === 1) { return; }
 
-            let target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
-            if (!target || target.tile.stack.length === 1) { return; }
+                this.activeTileItem = target;
+                this.dxStart = this.activeTileItem.x - input.x;
+                this.dyStart = this.activeTileItem.y - input.y;
+                this.xStart = this.activeTileItem.x;
+                this.yStart = this.activeTileItem.y;
+                this.zStart = this.activeTileItem.zIndex;
+
+                this.isWaiting = true;
+                console.log('TileMover WAIT');
+            }
+
+            return;
+        }
+
+
+        if (this.isWaiting) {
+            let isDoneWaiting = input.duration > MAX_DURATION_START_MOVE;
+            if (!isDoneWaiting) { return; }
+
+            this.isWaiting = false;
+            console.log('TileMover START');
+
+            let target = this.activeTileItem;
 
             if (this.shouldClone) {
                 target = new TileItem(target);
@@ -302,29 +327,26 @@ export class TileMover {
             }
 
             this.activeTileItem = target;
-            this.dxStart = this.activeTileItem.x - input.x;
-            this.dyStart = this.activeTileItem.y - input.y;
-            this.xStart = this.activeTileItem.x;
-            this.yStart = this.activeTileItem.y;
-            this.zStart = this.activeTileItem.zIndex;
+            this.activeTileItem.opacity = 0.0;
 
             this.previewTileItem = new TileItem(target);
             this.previewTileItem.tile = null;
-            this.previewTileItem.opacity = 0.75;
+            this.previewTileItem.opacity = 1;
             this.previewTileItem.shouldHighlight = true;
             this.previewTileItem.shouldBringToFront = true;
+            this.previewTileItem.zIndex = 100000;
 
             this.map.tileItems_floating.push(this.previewTileItem);
         }
 
         // Move Tile
-        this.activeTileItem.x = input.x + this.dxStart;
-        this.activeTileItem.y = input.y + this.dyStart;
-        this.activeTileItem.shouldHighlight = true;
-        this.activeTileItem.shouldBringToFront = true;
-        this.activeTileItem.zIndex = 10000;
+        // this.activeTileItem.x = input.x + this.dxStart;
+        // this.activeTileItem.y = input.y + this.dyStart;
+        // this.activeTileItem.shouldHighlight = true;
+        // this.activeTileItem.shouldBringToFront = true;
+        // this.activeTileItem.zIndex = 10000;
         // this.activeTileItem.opacity = 0.5;
-        this.activeTileItem.opacity = 0.0;
+        // this.activeTileItem.opacity = 0.0;
 
         // Show Preview
         let oldTile = this.activeTileItem.tile;
@@ -384,6 +406,8 @@ export class TileMover {
             this.activeTileItem.opacity = 1;
             this.activeTileItem = null;
             this.previewTileItem = null;
+
+            console.log('TileMover DONE');
         }
 
         movingTileItem = this.activeTileItem;
@@ -398,7 +422,7 @@ export class TileMover {
 }
 
 const MAX_DURATION_START_MOVE = 250;
-const MIN_DISTANCE_START_MOVE_SQ = 0.02 * 0.02;
+const MIN_DISTANCE_START_MOVE_SQ = 0.03 * 0.03;
 
 export class ViewportMover {
     mightDrag: boolean;

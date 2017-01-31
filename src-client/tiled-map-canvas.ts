@@ -122,7 +122,7 @@ async function load_async() {
 
         tileHighlighter.handleInput(input);
 
-        if (!(input.u < 0.2 && input.v > 0.8)) {
+        if (!input.isTouch && !(input.u < 0.2 && input.v > 0.8)) {
             viewportScroller.handleInput(input);
         } else {
             viewportScroller.cancel();

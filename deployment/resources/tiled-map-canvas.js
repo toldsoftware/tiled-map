@@ -505,16 +505,33 @@ var TileMover = (function () {
         }
         // console.log('TileMover.handleInput input=', input);
         if (!this.activeTileItem) {
-            if (input.type !== UserInputType.Start) {
+            if (input.type === UserInputType.Start) {
+                // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
+                // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
+                // if (!target) { return; }
+                var target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
+                if (!target || target.tile.stack.length === 1) {
+                    return;
+                }
+                this.activeTileItem = target;
+                this.dxStart = this.activeTileItem.x - input.x;
+                this.dyStart = this.activeTileItem.y - input.y;
+                this.xStart = this.activeTileItem.x;
+                this.yStart = this.activeTileItem.y;
+                this.zStart = this.activeTileItem.zIndex;
+                this.isWaiting = true;
+                console.log('TileMover WAIT');
+            }
+            return;
+        }
+        if (this.isWaiting) {
+            var isDoneWaiting = input.duration > MAX_DURATION_START_MOVE;
+            if (!isDoneWaiting) {
                 return;
             }
-            // let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            // let target = getNearestTileItem(tileItemsUnder, input, NearestTileMode.TopExceptBottom);
-            // if (!target) { return; }
-            var target = getTargetTileItem(this.map, input, TargetTileItemMode.SelectByTop);
-            if (!target || target.tile.stack.length === 1) {
-                return;
-            }
+            this.isWaiting = false;
+            console.log('TileMover START');
+            var target = this.activeTileItem;
             if (this.shouldClone) {
                 target = new tiled_map_1.TileItem(target);
                 // nearestTileItem.tile.stack.push(nearestTileItem);
@@ -522,26 +539,23 @@ var TileMover = (function () {
                 target.tile = null;
             }
             this.activeTileItem = target;
-            this.dxStart = this.activeTileItem.x - input.x;
-            this.dyStart = this.activeTileItem.y - input.y;
-            this.xStart = this.activeTileItem.x;
-            this.yStart = this.activeTileItem.y;
-            this.zStart = this.activeTileItem.zIndex;
+            this.activeTileItem.opacity = 0.0;
             this.previewTileItem = new tiled_map_1.TileItem(target);
             this.previewTileItem.tile = null;
-            this.previewTileItem.opacity = 0.75;
+            this.previewTileItem.opacity = 1;
             this.previewTileItem.shouldHighlight = true;
             this.previewTileItem.shouldBringToFront = true;
+            this.previewTileItem.zIndex = 100000;
             this.map.tileItems_floating.push(this.previewTileItem);
         }
         // Move Tile
-        this.activeTileItem.x = input.x + this.dxStart;
-        this.activeTileItem.y = input.y + this.dyStart;
-        this.activeTileItem.shouldHighlight = true;
-        this.activeTileItem.shouldBringToFront = true;
-        this.activeTileItem.zIndex = 10000;
+        // this.activeTileItem.x = input.x + this.dxStart;
+        // this.activeTileItem.y = input.y + this.dyStart;
+        // this.activeTileItem.shouldHighlight = true;
+        // this.activeTileItem.shouldBringToFront = true;
+        // this.activeTileItem.zIndex = 10000;
         // this.activeTileItem.opacity = 0.5;
-        this.activeTileItem.opacity = 0.0;
+        // this.activeTileItem.opacity = 0.0;
         // Show Preview
         var oldTile = this.activeTileItem.tile;
         var _a = getTilesAtInput(this.map, input), tilesUnder = _a.tilesUnder, tileItemsUnder = _a.tileItemsUnder;
@@ -596,6 +610,7 @@ var TileMover = (function () {
             this.activeTileItem.opacity = 1;
             this.activeTileItem = null;
             this.previewTileItem = null;
+            console.log('TileMover DONE');
         }
         movingTileItem = this.activeTileItem;
     };
@@ -609,7 +624,7 @@ var TileMover = (function () {
 }());
 exports.TileMover = TileMover;
 var MAX_DURATION_START_MOVE = 250;
-var MIN_DISTANCE_START_MOVE_SQ = 0.02 * 0.02;
+var MIN_DISTANCE_START_MOVE_SQ = 0.03 * 0.03;
 var ViewportMover = (function () {
     function ViewportMover(map, viewPort) {
         this.map = map;
@@ -2186,7 +2201,7 @@ function load_async() {
                             return;
                         }
                         tileHighlighter.handleInput(input);
-                        if (!(input.u < 0.2 && input.v > 0.8)) {
+                        if (!input.isTouch && !(input.u < 0.2 && input.v > 0.8)) {
                             viewportScroller.handleInput(input);
                         }
                         else {
@@ -2784,6 +2799,11 @@ var renderer_1 = __webpack_require__(13);
 var user_input_1 = __webpack_require__(2);
 var canvas_image_effect_1 = __webpack_require__(11);
 var DEBUG = true;
+function createBuffer() {
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    return { canvas: canvas, context: context };
+}
 var CanvasRenderer = (function (_super) {
     tslib_1.__extends(CanvasRenderer, _super);
     function CanvasRenderer(host) {
@@ -2792,9 +2812,12 @@ var CanvasRenderer = (function (_super) {
         _this.canvas = document.createElement('canvas');
         _this.context = _this.canvas.getContext('2d');
         host.appendChild(_this.canvas);
+        _this.highlightBuffer = createBuffer();
         var resize = function () {
-            _this.width = _this.canvas.width = host.clientWidth;
-            _this.height = _this.canvas.height = host.clientHeight;
+            _this.width = _this.highlightBuffer.canvas.width = _this.canvas.width = host.clientWidth;
+            _this.height = _this.highlightBuffer.canvas.height = _this.canvas.height = host.clientHeight;
+            // Trigger redraw all
+            _this.lastViewportValues = null;
             if (_this.onResize) {
                 _this.onResize();
             }
@@ -2803,11 +2826,11 @@ var CanvasRenderer = (function (_super) {
         host.addEventListener('resize', function () { return resize(); });
         window.addEventListener('resize', function () { return resize(); });
         _this.canvas.addEventListener('mousedown', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
-        _this.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start); });
+        _this.canvas.addEventListener('touchstart', function (e) { return _this.getInput(e, user_input_1.UserInputType.Start, true); });
         window.addEventListener('mousemove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
-        window.addEventListener('touchmove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move); });
+        window.addEventListener('touchmove', function (e) { return _this.getInput(e, user_input_1.UserInputType.Move, true); });
         window.addEventListener('mouseup', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
-        window.addEventListener('touchend', function (e) { return _this.getInput(e, user_input_1.UserInputType.End); });
+        window.addEventListener('touchend', function (e) { return _this.getInput(e, user_input_1.UserInputType.End, true); });
         window.addEventListener('mousewheel', function (e) {
             if (!_this.onZoom) {
                 return;
@@ -2823,7 +2846,8 @@ var CanvasRenderer = (function (_super) {
         });
         return _this;
     }
-    CanvasRenderer.prototype.getInput = function (e, type) {
+    CanvasRenderer.prototype.getInput = function (e, type, isTouch) {
+        if (isTouch === void 0) { isTouch = false; }
         if (this.lastViewport == null || this.onInput == null) {
             return;
         }
@@ -2893,7 +2917,7 @@ var CanvasRenderer = (function (_super) {
             isMultiple = true;
         }
         var duration = Date.now() - (this.inputDownStart || Date.now());
-        this.onInput({ x: x, y: y, type: type, duration: duration, u: u, v: v, isMultiple: isMultiple, inputCount: inputCount, u2: u2, v2: v2, x2: x2, y2: y2 });
+        this.onInput({ x: x, y: y, type: type, duration: duration, u: u, v: v, isMultiple: isMultiple, inputCount: inputCount, u2: u2, v2: v2, x2: x2, y2: y2, isTouch: isTouch });
         if (origType === user_input_1.UserInputType.Start) {
             this.isInputDown = true;
             this.inputDownStart = Date.now();
@@ -3015,6 +3039,9 @@ var CanvasRenderer = (function (_super) {
             ctx.restore();
         }
         // Draw Highlight above others
+        cvs = this.highlightBuffer.canvas;
+        ctx = this.highlightBuffer.context;
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
         for (var i = 0; i < dirty.length; i++) {
             var d = dirty[i];
             ctx.save();
@@ -3028,13 +3055,19 @@ var CanvasRenderer = (function (_super) {
                 var w = s.sprite.width * xScale;
                 var h = s.sprite.height * yScale;
                 if (s.shouldBringToFront) {
-                    ctx.globalAlpha = 0.25 * s.opacity;
+                    ctx.globalAlpha = s.opacity;
                     ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
                     ctx.globalAlpha = 1;
                 }
             }
             ctx.restore();
         }
+        // Draw the highlight buffer onto the main canvas
+        cvs = this.canvas;
+        ctx = this.context;
+        ctx.globalAlpha = 0.25;
+        ctx.drawImage(this.highlightBuffer.canvas, 0, 0, cvs.width, cvs.height);
+        ctx.globalAlpha = 1;
         // Reset is dirty
         for (var i = 0; i < dirty.length; i++) {
             var d = dirty[i];
