@@ -24,7 +24,8 @@ export class KenneyXmlLoader extends SpriteSheetLoader {
         let spriteSheet: SpriteSheet = {
             url: imageUrl,
             image: image,
-            sprites: []
+            sprites: [],
+            layoutMap: null
         };
 
         spriteSheet.sprites = obj.SubTexture.map(t => {

@@ -162,6 +162,12 @@ export class CanvasRenderer extends Renderer {
         return false;
     }
 
+    clear() {
+        let cvs = this.canvas;
+        let ctx = this.context;
+        ctx.clearRect(0, 0, cvs.width, cvs.height);
+    }
+
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort) {
         this.lastViewPort = viewPort;
 
@@ -171,19 +177,29 @@ export class CanvasRenderer extends Renderer {
         // Draw on the canvas context
         let cvs = this.canvas;
         let ctx = this.context;
-        ctx.clearRect(0, 0, cvs.width, cvs.height);
 
-// // TEST - Clip Half
-//         ctx.beginPath();
-//         ctx.moveTo(0, 0);
-//         ctx.lineTo(cvs.width * 0.5, 0);
-//         ctx.lineTo(cvs.width * 0.5, cvs.height);
-//         ctx.lineTo(0, cvs.height);
-//         ctx.lineTo(0, 0);
-//         ctx.clip();
+        // Clip Half
+        let wClip = cvs.width * (viewPort.clip_uRight - viewPort.clip_uLeft);
+        let hClip = cvs.height * (viewPort.clip_vBottom - viewPort.clip_vTop);
+        let xClip = cvs.width * viewPort.clip_uLeft;
+        let yClip = cvs.height * viewPort.clip_vTop;
 
-        let xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
-        let yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
+
+        ctx.beginPath();
+        ctx.moveTo(xClip, yClip);
+        ctx.lineTo(xClip + wClip, yClip);
+        ctx.lineTo(xClip + wClip, yClip + hClip);
+        ctx.lineTo(xClip, yClip + hClip);
+        ctx.lineTo(xClip, yClip);
+        ctx.clip();
+
+        // ctx.clearRect(xClip, yClip, wClip, hClip);
+
+        let xScale = wClip / (viewPort.xRight - viewPort.xLeft);
+        let yScale = hClip / (viewPort.yBottom - viewPort.yTop);
+        // TODO - Adjust
+        let xLeft = viewPort.xLeft;
+        let yTop = viewPort.yTop;
 
         // TODO: Is blocking highlight
         // let hasHighlight = sprites.some(s => s.shouldHighlight);
@@ -193,8 +209,8 @@ export class CanvasRenderer extends Renderer {
 
         for (let i = 0; i < sprites.length; i++) {
             let s = sprites[i];
-            let x = (s.x - viewPort.xLeft) * xScale;
-            let y = (s.y - viewPort.yTop) * yScale;
+            let x = (s.x - xLeft) * xScale;
+            let y = (s.y - yTop) * yScale;
             let w = s.sprite.width * xScale;
             let h = s.sprite.height * yScale;
 
@@ -225,8 +241,8 @@ export class CanvasRenderer extends Renderer {
         // Draw Highlight above others
         for (let i = 0; i < sprites.length; i++) {
             let s = sprites[i];
-            let x = (s.x - viewPort.xLeft) * xScale;
-            let y = (s.y - viewPort.yTop) * yScale;
+            let x = (s.x - xLeft) * xScale;
+            let y = (s.y - yTop) * yScale;
             let w = s.sprite.width * xScale;
             let h = s.sprite.height * yScale;
 
@@ -238,17 +254,17 @@ export class CanvasRenderer extends Renderer {
         }
     }
 
-    drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort) {
-        let cvs = this.canvas;
-        let ctx = this.context;
-        let xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
-        let yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
+    // drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort) {
+    //     let cvs = this.canvas;
+    //     let ctx = this.context;
+    //     let xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
+    //     let yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
 
 
-        ctx.strokeStyle = '#333333';
-        ctx.beginPath();
-        ctx.moveTo(x1 * xScale, y1 * yScale);
-        ctx.lineTo(x2 * xScale, y2 * yScale);
-        ctx.stroke();
-    }
+    //     ctx.strokeStyle = '#333333';
+    //     ctx.beginPath();
+    //     ctx.moveTo(x1 * xScale, y1 * yScale);
+    //     ctx.lineTo(x2 * xScale, y2 * yScale);
+    //     ctx.stroke();
+    // }
 }

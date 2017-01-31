@@ -51,10 +51,9 @@
 	var canvas_renderer_1 = __webpack_require__(6);
 	var loader_1 = __webpack_require__(10);
 	var user_input_1 = __webpack_require__(8);
-	// TODO: Load a test map
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var map, spriteSheet, r, viewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, mode, animate;
+	        var map, spriteSheet, r, viewPort, toolPanelViewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, toolPanelViewportResizer, mode, animate;
 	        return tslib_1.__generator(this, function (_a) {
 	            switch (_a.label) {
 	                case 0:
@@ -78,20 +77,41 @@
 	                    viewPort.xRight = 1600;
 	                    viewPort.yTop = -900;
 	                    viewPort.yBottom = 900;
+	                    viewPort.clip_uLeft = 0;
+	                    viewPort.clip_uRight = 1;
+	                    viewPort.clip_vTop = 0;
+	                    // viewPort.clip_vBottom = 0.5;
+	                    // viewPort.clip_vBottom = 0.9;
+	                    viewPort.clip_vBottom = 1;
+	                    toolPanelViewPort = new tiled_map_1.ViewPort();
+	                    toolPanelViewPort.xLeft = -1600;
+	                    toolPanelViewPort.xRight = 1600;
+	                    toolPanelViewPort.yTop = -900;
+	                    toolPanelViewPort.yBottom = 900;
+	                    toolPanelViewPort.clip_uLeft = 0;
+	                    toolPanelViewPort.clip_uRight = 1;
+	                    toolPanelViewPort.clip_vTop = 0.5;
+	                    toolPanelViewPort.clip_vBottom = 1;
 	                    tileHighlighter = new user_input_1.TileHighlighter(map);
 	                    tileMover = new user_input_1.TileMover(map, false);
 	                    tileCloner = new user_input_1.TileMover(map, true);
 	                    viewportMover = new user_input_1.ViewportMover(map, viewPort);
 	                    viewportScroller = new user_input_1.ViewportScroller(map, viewPort);
-	                    viewportResizer = new user_input_1.ViewportResizer(map, viewPort, r);
+	                    viewportResizer = new user_input_1.ViewportResizer(viewPort, r);
 	                    viewportMultiTouchScroller = new user_input_1.ViewportMultiTouchScroller(map, viewPort, viewportResizer);
+	                    toolPanelViewportResizer = new user_input_1.ViewportResizer(toolPanelViewPort, r);
 	                    // Handle resize
 	                    r.onResize = function () {
 	                        viewportResizer.resize();
+	                        toolPanelViewportResizer.resize();
 	                    };
-	                    setTimeout(function () { return viewportResizer.resize(); });
+	                    setTimeout(function () {
+	                        viewportResizer.resize();
+	                        toolPanelViewportResizer.resize();
+	                    });
 	                    r.onZoom = function (scaleRatio) {
 	                        viewportResizer.resize(scaleRatio);
+	                        toolPanelViewportResizer.resize(scaleRatio);
 	                    };
 	                    mode = 0;
 	                    r.onInput = function (input) {
@@ -147,13 +167,12 @@
 	                        }
 	                    };
 	                    animate = function () {
+	                        r.clear();
 	                        r.draw(map, viewPort);
+	                        // r.draw(map, toolPanelViewPort);
 	                        requestAnimationFrame(animate);
 	                    };
 	                    requestAnimationFrame(animate);
-	                    setTimeout(function () {
-	                        r.draw(map, viewPort);
-	                    }, 250);
 	                    console.log('load_async END');
 	                    return [2 /*return*/];
 	            }
@@ -187,7 +206,9 @@
 	    console.log(data);
 	    console.log(JSON.stringify(data));
 	}
-	function setup() { load_async().then(); }
+	function setup() {
+	    load_async().then().catch(function (err) { return console.error(err); });
+	}
 	exports.setup = setup;
 	setup();
 
@@ -395,7 +416,8 @@
 	        var spriteSheet = {
 	            url: imageUrl,
 	            image: image,
-	            sprites: []
+	            sprites: [],
+	            layoutMap: null
 	        };
 	        spriteSheet.sprites = obj.SubTexture.map(function (t) {
 	            // Convert to numbers
@@ -759,6 +781,11 @@
 	        e.preventDefault();
 	        return false;
 	    };
+	    CanvasRenderer.prototype.clear = function () {
+	        var cvs = this.canvas;
+	        var ctx = this.context;
+	        ctx.clearRect(0, 0, cvs.width, cvs.height);
+	    };
 	    CanvasRenderer.prototype.drawItems = function (sprites, viewPort) {
 	        this.lastViewPort = viewPort;
 	        var OVER_SIZE = 4;
@@ -766,17 +793,24 @@
 	        // Draw on the canvas context
 	        var cvs = this.canvas;
 	        var ctx = this.context;
-	        ctx.clearRect(0, 0, cvs.width, cvs.height);
-	        // // TEST - Clip Half
-	        //         ctx.beginPath();
-	        //         ctx.moveTo(0, 0);
-	        //         ctx.lineTo(cvs.width * 0.5, 0);
-	        //         ctx.lineTo(cvs.width * 0.5, cvs.height);
-	        //         ctx.lineTo(0, cvs.height);
-	        //         ctx.lineTo(0, 0);
-	        //         ctx.clip();
-	        var xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
-	        var yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
+	        // Clip Half
+	        var wClip = cvs.width * (viewPort.clip_uRight - viewPort.clip_uLeft);
+	        var hClip = cvs.height * (viewPort.clip_vBottom - viewPort.clip_vTop);
+	        var xClip = cvs.width * viewPort.clip_uLeft;
+	        var yClip = cvs.height * viewPort.clip_vTop;
+	        ctx.beginPath();
+	        ctx.moveTo(xClip, yClip);
+	        ctx.lineTo(xClip + wClip, yClip);
+	        ctx.lineTo(xClip + wClip, yClip + hClip);
+	        ctx.lineTo(xClip, yClip + hClip);
+	        ctx.lineTo(xClip, yClip);
+	        ctx.clip();
+	        // ctx.clearRect(xClip, yClip, wClip, hClip);
+	        var xScale = wClip / (viewPort.xRight - viewPort.xLeft);
+	        var yScale = hClip / (viewPort.yBottom - viewPort.yTop);
+	        // TODO - Adjust
+	        var xLeft = viewPort.xLeft;
+	        var yTop = viewPort.yTop;
 	        // TODO: Is blocking highlight
 	        // let hasHighlight = sprites.some(s => s.shouldHighlight);
 	        // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
@@ -784,8 +818,8 @@
 	        // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
 	        for (var i = 0; i < sprites.length; i++) {
 	            var s = sprites[i];
-	            var x = (s.x - viewPort.xLeft) * xScale;
-	            var y = (s.y - viewPort.yTop) * yScale;
+	            var x = (s.x - xLeft) * xScale;
+	            var y = (s.y - yTop) * yScale;
 	            var w = s.sprite.width * xScale;
 	            var h = s.sprite.height * yScale;
 	            var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
@@ -814,8 +848,8 @@
 	        // Draw Highlight above others
 	        for (var i = 0; i < sprites.length; i++) {
 	            var s = sprites[i];
-	            var x = (s.x - viewPort.xLeft) * xScale;
-	            var y = (s.y - viewPort.yTop) * yScale;
+	            var x = (s.x - xLeft) * xScale;
+	            var y = (s.y - yTop) * yScale;
 	            var w = s.sprite.width * xScale;
 	            var h = s.sprite.height * yScale;
 	            if (s.shouldBringToFront) {
@@ -824,17 +858,6 @@
 	                ctx.globalAlpha = 1;
 	            }
 	        }
-	    };
-	    CanvasRenderer.prototype.drawLine = function (x1, y1, x2, y2, viewPort) {
-	        var cvs = this.canvas;
-	        var ctx = this.context;
-	        var xScale = cvs.width / (viewPort.xRight - viewPort.xLeft);
-	        var yScale = cvs.height / (viewPort.yBottom - viewPort.yTop);
-	        ctx.strokeStyle = '#333333';
-	        ctx.beginPath();
-	        ctx.moveTo(x1 * xScale, y1 * yScale);
-	        ctx.lineTo(x2 * xScale, y2 * yScale);
-	        ctx.stroke();
 	    };
 	    return CanvasRenderer;
 	}(renderer_1.Renderer));
@@ -849,6 +872,7 @@
 	var Renderer = (function () {
 	    function Renderer() {
 	    }
+	    // abstract drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 	    Renderer.prototype.draw = function (map, viewPort) {
 	        // Filter the tiles that are in the viewPort
 	        var visibleItems = [];
@@ -876,6 +900,26 @@
 	        // for (let j = -10; j < 10; j++) {
 	        // }
 	        visibleItems.sort(function (a, b) { return a.zIndex - b.zIndex; });
+	        // // Tile Slots
+	        // let w = viewPort.xRight - viewPort.xLeft;
+	        // let slotCount = Math.floor(w / (map.tileWidth)) - 1;
+	        // for (let i = 0; i < slotCount; i++) {
+	        //     let s = map.toolSlots[i];
+	        //     if (s == null) {
+	        //         s = map.defaultSprite;
+	        //     }
+	        //     let wSlot = (w - map.tileWidth) / slotCount;
+	        //     let xSlotFirst = viewPort.xLeft + wSlot * 0.5;
+	        //     visibleItems.push({
+	        //         sprite: s,
+	        //         opacity: 1,
+	        //         shouldBringToFront: false,
+	        //         shouldHighlight: i === map.iToolSlot,
+	        //         x: xSlotFirst + wSlot * i,
+	        //         y: viewPort.yBottom - s.height - map.tileHeight * 0.5,
+	        //         zIndex: 100000,
+	        //     });
+	        // }
 	        this.drawItems(visibleItems, viewPort);
 	        // // DEBUG: Draw Grid
 	        // for (let i = -100; i < 100; i++) {
@@ -1207,7 +1251,7 @@
 	            setTimeout((function () {
 	                a_1.shouldHighlight = false;
 	                a_1.shouldBringToFront = false;
-	            }), 1000);
+	            }), 200);
 	            this.activeTileItem.opacity = 1;
 	            this.activeTileItem = null;
 	            this.previewTileItem = null;
@@ -1268,6 +1312,15 @@
 	    return ViewportMover;
 	}());
 	exports.ViewportMover = ViewportMover;
+	function scaleToViewport(uv, viewPort) {
+	    var u = uv.u;
+	    var v = uv.v;
+	    // Scale to clip
+	    u = (u - viewPort.clip_uLeft) / (viewPort.clip_uRight - viewPort.clip_uLeft);
+	    v = (v - viewPort.clip_vTop) / (viewPort.clip_vBottom - viewPort.clip_vTop);
+	    return { u: u, v: v };
+	}
+	exports.scaleToViewport = scaleToViewport;
 	var ViewportScroller = (function () {
 	    function ViewportScroller(map, viewPort) {
 	        this.map = map;
@@ -1282,17 +1335,18 @@
 	        var r = 0.1;
 	        var dx = 0;
 	        var dy = 0;
-	        if (input.u < r && input.u > 0) {
-	            dx = -1 * Math.pow(1 - (input.u / r), 2);
+	        var _a = scaleToViewport(input, this.viewPort), u = _a.u, v = _a.v;
+	        if (u < r && u >= 0) {
+	            dx = -1 * Math.pow(1 - (u / r), 2);
 	        }
-	        if (input.u > 1 - r && input.u < 1) {
-	            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
+	        if (u > 1 - r && u <= 1) {
+	            dx = 1 * Math.pow(1 - ((1 - u) / r), 2);
 	        }
-	        if (input.v < r && input.v > 0) {
-	            dy = -1 * Math.pow(1 - (input.v / r), 2);
+	        if (v < r && v >= 0) {
+	            dy = -1 * Math.pow(1 - (v / r), 2);
 	        }
-	        if (input.v > 1 - r && input.v < 1) {
-	            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
+	        if (v > 1 - r && v <= 1) {
+	            dy = 1 * Math.pow(1 - ((1 - v) / r), 2);
 	        }
 	        this.dx = dx;
 	        this.dy = dy;
@@ -1328,8 +1382,7 @@
 	}());
 	exports.ViewportScroller = ViewportScroller;
 	var ViewportResizer = (function () {
-	    function ViewportResizer(map, viewPort, host) {
-	        this.map = map;
+	    function ViewportResizer(viewPort, host) {
 	        this.viewPort = viewPort;
 	        this.host = host;
 	    }
@@ -1337,13 +1390,15 @@
 	        if (scaleRatio === void 0) { scaleRatio = 1; }
 	        if (uOrigin === void 0) { uOrigin = 0.5; }
 	        if (vOrigin === void 0) { vOrigin = 0.5; }
+	        var hw = this.host.width * (this.viewPort.clip_uRight - this.viewPort.clip_uLeft);
+	        var hh = this.host.height * (this.viewPort.clip_vBottom - this.viewPort.clip_vTop);
 	        var w = this.viewPort.xRight - this.viewPort.xLeft;
-	        var scale = w / this.host.width;
-	        var h = this.host.height * scale;
+	        var scale = w / hw;
+	        var h = hh * scale;
 	        if (scaleRatio !== 1) {
 	            scale *= scaleRatio;
-	            h = this.host.height * scale;
-	            w = this.host.width * scale;
+	            w = hw * scale;
+	            h = hh * scale;
 	        }
 	        var wDiff = w - (this.viewPort.xRight - this.viewPort.xLeft);
 	        var hDiff = h - (this.viewPort.yBottom - this.viewPort.yTop);
@@ -1684,21 +1739,20 @@
 	var http = src_1.Platform.http();
 	function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSprite, spriteSheetLoader, shape, tileWidth, tileHeight, spriteSheetLayoutJsonUrl) {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
-	        var image, metaDataText, spriteSheet, json, mapData, iMin, iMax, jMin, jMax, iRange, jRange, map, i, j, s, _a, xBottomCenter, yBottomCenter, zIndex, x, y, tile, tiles, _loop_1, _i, _b, t;
+	        var image, metaDataText, spriteSheet, mapData, iMin, iMax, jMin, jMax, iRange, jRange, map, i, j, s, _a, xBottomCenter, yBottomCenter, zIndex, x, y, tile, tiles, _loop_1, _i, _b, t;
 	        return tslib_1.__generator(this, function (_c) {
 	            switch (_c.label) {
 	                case 0:
 	                    image = new Image();
-	                    image.src = spriteSheetImageUrl;
+	                    image.src = http.resolveUrl(spriteSheetImageUrl);
 	                    return [4 /*yield*/, http.request(spriteSheetMetaDataUrl)];
 	                case 1:
-	                    metaDataText = (_c.sent()).data;
+	                    metaDataText = (_c.sent()).dataRaw;
 	                    spriteSheet = spriteSheetLoader.load(spriteSheetImageUrl, image, tileWidth, tileHeight, metaDataText);
 	                    if (!spriteSheetLayoutJsonUrl) return [3 /*break*/, 3];
 	                    return [4 /*yield*/, http.request(spriteSheetLayoutJsonUrl)];
 	                case 2:
-	                    json = (_c.sent()).data;
-	                    mapData = JSON.parse(json);
+	                    mapData = (_c.sent()).data;
 	                    iMin = mapData.tiles.reduce(function (out, t) { return out < t.i ? out : t.i; }, mapData.tiles[0].i);
 	                    iMax = mapData.tiles.reduce(function (out, t) { return out > t.i ? out : t.i; }, mapData.tiles[0].i);
 	                    jMin = mapData.tiles.reduce(function (out, t) { return out < t.j ? out : t.j; }, mapData.tiles[0].j);
@@ -1718,6 +1772,8 @@
 	                        tileHeight: tileHeight,
 	                        tiles: [],
 	                        tileItems_floating: [],
+	                        toolSlots: [],
+	                        iToolSlot: 0,
 	                        defaultSprite: defaultSprite
 	                    };
 	                    // Add Default Sprites
@@ -1795,15 +1851,17 @@
 	                        tileHeight: tileHeight,
 	                        tiles: [],
 	                        tileItems_floating: [],
+	                        toolSlots: [],
+	                        iToolSlot: 0,
 	                        defaultSprite: null
 	                    };
 	                    iZero = map.iZero;
 	                    jZero = map.jZero;
 	                    image = new Image();
-	                    image.src = spriteSheetImageUrl;
+	                    image.src = http.resolveUrl(spriteSheetImageUrl);
 	                    return [4 /*yield*/, http.request(spriteSheetMetaDataUrl)];
 	                case 1:
-	                    metaDataText = (_c.sent()).data;
+	                    metaDataText = (_c.sent()).dataRaw;
 	                    spriteSheet = spriteSheetLoader.load(spriteSheetImageUrl, image, tileWidth, tileHeight, metaDataText);
 	                    defaultSprite = map.defaultSprite = spriteSheet.sprites[defaultSpriteIndex];
 	                    for (i = 0; i < iZero * 2; i++) {
@@ -1919,6 +1977,7 @@
 	    Platform.http = function () { return Platform.provider.http(); };
 	    return Platform;
 	}());
+	Platform.urlResolver = function (url) { return url; };
 	exports.Platform = Platform;
 	//# sourceMappingURL=platform.js.map
 
@@ -1932,7 +1991,7 @@
 	        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
 	        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
 	        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-	        step((generator = generator.apply(thisArg, _arguments)).next());
+	        step((generator = generator.apply(thisArg, _arguments || [])).next());
 	    });
 	};
 	var __generator = (this && this.__generator) || function (thisArg, body) {
@@ -1983,11 +2042,15 @@
 	    BrowserHttpClient.prototype.request = function (url, method, data, headers, withCredentials) {
 	        if (withCredentials === void 0) { withCredentials = false; }
 	        return __awaiter(this, void 0, void 0, function () {
+	            var _this = this;
 	            return __generator(this, function (_a) {
 	                return [2 /*return*/, new Promise(function (resolve, reject) {
-	                        method = method || "GET";
+	                        method = method || 'GET';
+	                        if (typeof data === 'object' && data.constructor === Object) {
+	                            data = JSON.stringify(data);
+	                        }
 	                        new browser_ajax_1.Ajax().ajax({
-	                            url: url,
+	                            url: _this.resolveUrl(url),
 	                            type: method,
 	                            data: data,
 	                            withCredentials: withCredentials,
@@ -2000,10 +2063,16 @@
 	                                }
 	                            },
 	                            success: function (data, textStatus, response) {
-	                                var headersList = response.getAllResponseHeaders().split("\n").map(function (x) { return x.trim().split("="); });
+	                                var headersList = response.getAllResponseHeaders().split('\n').map(function (x) { return x.trim().split('='); });
 	                                var headers = {};
 	                                headersList.forEach(function (x) { return headers[x[0]] = x[1]; });
-	                                resolve({ data: data, headers: headers });
+	                                var dataObj = null;
+	                                try {
+	                                    dataObj = JSON.parse(data);
+	                                }
+	                                catch (err) {
+	                                }
+	                                resolve({ dataRaw: data, data: dataObj, headers: headers });
 	                            },
 	                            error: function (err) { return reject(err); }
 	                        });
@@ -2011,6 +2080,7 @@
 	            });
 	        });
 	    };
+	    BrowserHttpClient.prototype.resolveUrl = function (url) { return P.Platform.urlResolver(url); };
 	    return BrowserHttpClient;
 	}());
 	//# sourceMappingURL=browser.js.map
@@ -2068,38 +2138,38 @@
 	            url: url,
 	            type: "GET",
 	            success: onSuccess,
-	            error: function (xhr, errorStatus, information) { return onFail(errorStatus + ":" + information); }
+	            error: function (xhr, errorStatus, information) { return onFail(errorStatus + ':' + information); }
 	        });
 	    };
 	    ;
 	    Ajax.prototype.post = function (url, data, onSuccess, onFail) {
 	        var query = [];
 	        for (var key in data) {
-	            query.push(encodeURIComponent(key) + "=" + encodeURIComponent(data[key]));
+	            query.push(encodeURIComponent(key) + '=' + encodeURIComponent(data[key]));
 	        }
-	        var dataString = query.join("&");
+	        var dataString = query.join('&');
 	        // this.send(url, callback, 'POST', query.join('&'));
 	        this.ajax({
 	            url: url,
 	            data: dataString,
-	            type: "POST",
-	            contentType: "application/x-www-form-urlencoded",
+	            type: 'POST',
+	            contentType: 'application/x-www-form-urlencoded',
 	            success: onSuccess,
-	            error: function (xhr, errorStatus, information) { return onFail(errorStatus + ":" + information); }
+	            error: function (xhr, errorStatus, information) { return onFail(errorStatus + ':' + information); }
 	        });
 	    };
 	    ;
 	    Ajax.prototype.jsonp = function (url, data, onSuccess, onFail) {
 	        var query = [];
 	        for (var key in data) {
-	            query.push(encodeURIComponent(key) + "=" + encodeURIComponent(data[key]));
+	            query.push(encodeURIComponent(key) + '=' + encodeURIComponent(data[key]));
 	        }
-	        var dataString = query.join("&");
+	        var dataString = query.join('&');
 	        // this.send(url, callback, 'POST', query.join('&'));
 	        var src = url
-	            + (url.indexOf("?") > 0 ? "&" : "?")
+	            + (url.indexOf('?') > 0 ? '&' : '?')
 	            + dataString;
-	        var script = document.createElement("script");
+	        var script = document.createElement('script');
 	        script.src = src;
 	        script.onload = function () { return onSuccess(); };
 	        script.onerror = function () { return onFail(); };
@@ -2117,8 +2187,8 @@
 	        // settings.success
 	        // settings.type
 	        // settings.url
-	        if (settings.dataType != null && settings.dataType !== "text") {
-	            throw "Ajax Library does not process data - set to null or text";
+	        if (settings.dataType != null && settings.dataType !== 'text') {
+	            throw 'Ajax Library does not process data - set to null or text';
 	        }
 	        settings.success = settings.success || (function () { });
 	        settings.error = settings.error || (function () { });
@@ -2128,15 +2198,15 @@
 	        var hasCompleted = false;
 	        setTimeout(function () {
 	            if (!hasCompleted) {
-	                settings.error(xhr, "Timed Out", "");
+	                settings.error(xhr, 'Timed Out', '');
 	            }
 	        }, 30 * 1000);
 	        var url = settings.url;
-	        var method = settings.type || "GET";
+	        var method = settings.type || 'GET';
 	        xhr.open(method, url, true);
 	        xhr.withCredentials = settings.withCredentials || false;
 	        xhr.onerror = function (ev) {
-	            settings.error(xhr, "" + xhr.status, "" + ev);
+	            settings.error(xhr, '' + xhr.status, '' + ev);
 	        };
 	        xhr.onreadystatechange = function () {
 	            // console.log("xhr.onreadystatechange",
@@ -2149,25 +2219,25 @@
 	                hasCompleted = true;
 	                if (xhr.status >= 200 && xhr.status < 300) {
 	                    try {
-	                        settings.success(xhr.responseText, "" + xhr.status, xhr);
+	                        settings.success(xhr.responseText, '' + xhr.status, xhr);
 	                    }
 	                    catch (err) {
-	                        console.log("ERROR in success handler", err);
+	                        console.log('ERROR in success handler', err);
 	                    }
 	                }
 	                else {
 	                    try {
-	                        settings.error(xhr, "" + xhr.status, "");
+	                        settings.error(xhr, '' + xhr.status, '');
 	                    }
 	                    catch (err) {
-	                        console.log("ERROR in error handler", err);
+	                        console.log('ERROR in error handler', err);
 	                    }
 	                }
 	                try {
 	                    settings.complete();
 	                }
 	                catch (err) {
-	                    console.log("ERROR in complete handler", err);
+	                    console.log('ERROR in complete handler', err);
 	                }
 	            }
 	        };
@@ -2175,7 +2245,7 @@
 	        //     xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 	        // }
 	        if (settings.contentType != null) {
-	            xhr.setRequestHeader("Content-type", settings.contentType);
+	            xhr.setRequestHeader('Content-type', settings.contentType);
 	        }
 	        settings.beforeSend(xhr);
 	        xhr.send(settings.data);

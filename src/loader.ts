@@ -11,13 +11,12 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
     tileWidth: number, tileHeight: number, spriteSheetLayoutJsonUrl?: string
 ) {
     let image = new Image();
-    image.src = spriteSheetImageUrl;
-    let metaDataText = (await http.request(spriteSheetMetaDataUrl)).data;
+    image.src = http.resolveUrl(spriteSheetImageUrl);
+    let metaDataText = (await http.request(spriteSheetMetaDataUrl)).dataRaw;
     let spriteSheet = spriteSheetLoader.load(spriteSheetImageUrl, image, tileWidth, tileHeight, metaDataText);
 
     if (spriteSheetLayoutJsonUrl) {
-        let json = (await http.request(spriteSheetLayoutJsonUrl)).data;
-        let mapData = JSON.parse(json) as MapData;
+        let mapData = (await http.request<MapData>(spriteSheetLayoutJsonUrl)).data;
         let iMin = mapData.tiles.reduce((out, t) => out < t.i ? out : t.i, mapData.tiles[0].i);
         let iMax = mapData.tiles.reduce((out, t) => out > t.i ? out : t.i, mapData.tiles[0].i);
         let jMin = mapData.tiles.reduce((out, t) => out < t.j ? out : t.j, mapData.tiles[0].j);
@@ -40,6 +39,8 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
             tileHeight,
             tiles: [],
             tileItems_floating: [],
+            toolSlots: [],
+            iToolSlot: 0,
             defaultSprite: defaultSprite
         };
 
@@ -121,6 +122,8 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
         tileHeight,
         tiles: [],
         tileItems_floating: [],
+        toolSlots: [],
+        iToolSlot: 0,
         defaultSprite: null
     };
 
@@ -128,9 +131,9 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
     let jZero = map.jZero;
 
     let image = new Image();
-    image.src = spriteSheetImageUrl;
+    image.src = http.resolveUrl(spriteSheetImageUrl);
 
-    let metaDataText = (await http.request(spriteSheetMetaDataUrl)).data;
+    let metaDataText = (await http.request(spriteSheetMetaDataUrl)).dataRaw;
     let spriteSheet = spriteSheetLoader.load(spriteSheetImageUrl, image, tileWidth, tileHeight, metaDataText);
 
     // Load default sprites

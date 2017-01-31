@@ -78,6 +78,13 @@ export declare class ViewportMover {
     cancel(): void;
     handleInput(input: UserInput): void;
 }
+export declare function scaleToViewport(uv: {
+    u: number;
+    v: number;
+}, viewPort: ViewPort): {
+    u: number;
+    v: number;
+};
 export declare class ViewportScroller {
     private map;
     private viewPort;
@@ -93,10 +100,9 @@ export declare class ViewportScroller {
     animate(): void;
 }
 export declare class ViewportResizer {
-    private map;
     private viewPort;
     private host;
-    constructor(map: Map, viewPort: ViewPort, host: {
+    constructor(viewPort: ViewPort, host: {
         height: number;
         width: number;
     });

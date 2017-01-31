@@ -3,9 +3,15 @@ export declare class ViewPort {
     yTop: number;
     xRight: number;
     yBottom: number;
+    clip_uLeft: number;
+    clip_uRight: number;
+    clip_vTop: number;
+    clip_vBottom: number;
 }
 export declare class Map {
     tileItems_floating: TileItem[];
+    toolSlots: Sprite[];
+    iToolSlot: number;
     tiles: Tile[][];
     iZero: number;
     jZero: number;

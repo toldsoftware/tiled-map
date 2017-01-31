@@ -4,7 +4,7 @@
   "description": "Tiled Map",
   "main": "index.ts",
   "scripts": {
-    "asf": ".\\node_modules\\.bin\\afs -w",
+    "afs": ".\\node_modules\\.bin\\afs -w",
     "test": "karma start karma.conf.js"
   },
   "repository": {
@@ -42,8 +42,8 @@
   },
   "dependencies": {
     "@told/azure-blob-access": "^1.4.1",
-    "@told/azure-functions-server": "^1.5.2",
-    "@told/platform": "^1.0.4",
+    "@told/azure-functions-server": "^1.8.0",
+    "@told/platform": "^1.1.0",
     "xml2json-light": "^1.0.4"
   }
 }

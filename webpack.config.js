@@ -3,7 +3,8 @@ var  BrowserSyncPlugin  =  require('browser-sync-webpack-plugin'); 
 
 module.exports = {
     entry: {
-        './resources/tiled-map-canvas.js': './src-webpack/tiled-map-canvas.ts',
+        // './resources/tiled-map-canvas.js': './src-client/tiled-map-canvas.ts',
+        './deployment/resources/tiled-map-canvas.js': './deployment/resources/tiled-map-canvas.source.js',
     },
     output: {
         path: './',
@@ -35,6 +36,7 @@ module.exports = {
         //     mangle: false,
         //     test: /\.(js|jsx)$/
         // })
+        , new webpack.optimize.DedupePlugin()
     ]
 
 };

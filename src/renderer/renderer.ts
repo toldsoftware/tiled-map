@@ -2,7 +2,7 @@ import { SpriteInstance, Map, ViewPort, MapShape } from '../tiled-map';
 
 export abstract class Renderer {
     abstract drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
-    abstract drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
+    // abstract drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 
     draw(map: Map, viewPort: ViewPort) {
 
@@ -38,6 +38,33 @@ export abstract class Renderer {
         // }
 
         visibleItems.sort((a, b) => a.zIndex - b.zIndex);
+
+        // // Tile Slots
+        // let w = viewPort.xRight - viewPort.xLeft;
+        // let slotCount = Math.floor(w / (map.tileWidth)) - 1;
+
+        // for (let i = 0; i < slotCount; i++) {
+        //     let s = map.toolSlots[i];
+
+        //     if (s == null) {
+        //         s = map.defaultSprite;
+        //     }
+
+        //     let wSlot = (w - map.tileWidth) / slotCount;
+        //     let xSlotFirst = viewPort.xLeft + wSlot * 0.5;
+
+        //     visibleItems.push({
+        //         sprite: s,
+        //         opacity: 1,
+        //         shouldBringToFront: false,
+        //         shouldHighlight: i === map.iToolSlot,
+        //         x: xSlotFirst + wSlot * i,
+        //         y: viewPort.yBottom - s.height - map.tileHeight * 0.5,
+        //         zIndex: 100000,
+        //     });
+
+        // }
+
         this.drawItems(visibleItems, viewPort);
 
 

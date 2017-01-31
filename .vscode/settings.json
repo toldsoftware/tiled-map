@@ -10,11 +10,11 @@
         "karma.conf.js": true,
         "LICENSE": true,
         // "tsconfig.json": true,
-        "tslint.json": true,
+        //"tslint.json": true,
 
         // Generated for Deployment (In Repo)
         "lib": true,
-        "deployment": true,
+        // "deployment": true,
         ".deployment": true,
 
         // Generated for Testing (Not in Repo)

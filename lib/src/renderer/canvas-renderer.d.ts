@@ -20,6 +20,6 @@ export declare class CanvasRenderer extends Renderer {
     onZoom: (scaleRatio: number) => void;
     constructor(host: HTMLElement);
     getInput(e: Event, type: UserInputType): false;
+    clear(): void;
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort): void;
-    drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort): void;
 }

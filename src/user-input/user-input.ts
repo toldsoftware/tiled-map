@@ -379,7 +379,7 @@ export class TileMover {
             setTimeout((() => {
                 a.shouldHighlight = false;
                 a.shouldBringToFront = false;
-            }), 1000);
+            }), 200);
 
             this.activeTileItem.opacity = 1;
             this.activeTileItem = null;
@@ -448,6 +448,17 @@ export class ViewportMover {
     }
 }
 
+export function scaleToViewport(uv: { u: number, v: number }, viewPort: ViewPort) {
+    let u = uv.u;
+    let v = uv.v;
+
+    // Scale to clip
+    u = (u - viewPort.clip_uLeft) / (viewPort.clip_uRight - viewPort.clip_uLeft);
+    v = (v - viewPort.clip_vTop) / (viewPort.clip_vBottom - viewPort.clip_vTop);
+
+    return { u, v };
+}
+
 export class ViewportScroller {
 
     stopTimeoutId: number;
@@ -470,20 +481,22 @@ export class ViewportScroller {
         let dx = 0;
         let dy = 0;
 
-        if (input.u < r && input.u > 0) {
-            dx = -1 * Math.pow(1 - (input.u / r), 2);
+        let {u, v} = scaleToViewport(input, this.viewPort);
+
+        if (u < r && u >= 0) {
+            dx = -1 * Math.pow(1 - (u / r), 2);
         }
 
-        if (input.u > 1 - r && input.u < 1) {
-            dx = 1 * Math.pow(1 - ((1 - input.u) / r), 2);
+        if (u > 1 - r && u <= 1) {
+            dx = 1 * Math.pow(1 - ((1 - u) / r), 2);
         }
 
-        if (input.v < r && input.v > 0) {
-            dy = -1 * Math.pow(1 - (input.v / r), 2);
+        if (v < r && v >= 0) {
+            dy = -1 * Math.pow(1 - (v / r), 2);
         }
 
-        if (input.v > 1 - r && input.v < 1) {
-            dy = 1 * Math.pow(1 - ((1 - input.v) / r), 2);
+        if (v > 1 - r && v <= 1) {
+            dy = 1 * Math.pow(1 - ((1 - v) / r), 2);
         }
 
         this.dx = dx;
@@ -530,17 +543,21 @@ export class ViewportScroller {
 }
 
 export class ViewportResizer {
-    constructor(private map: Map, private viewPort: ViewPort, private host: { height: number, width: number }) { }
+    constructor(private viewPort: ViewPort, private host: { height: number, width: number }) { }
 
     resize(scaleRatio = 1, uOrigin = 0.5, vOrigin = 0.5) {
+
+        let hw = this.host.width * (this.viewPort.clip_uRight - this.viewPort.clip_uLeft);
+        let hh = this.host.height * (this.viewPort.clip_vBottom - this.viewPort.clip_vTop);
+
         let w = this.viewPort.xRight - this.viewPort.xLeft;
-        let scale = w / this.host.width;
-        let h = this.host.height * scale;
+        let scale = w / hw;
+        let h = hh * scale;
 
         if (scaleRatio !== 1) {
             scale *= scaleRatio;
-            h = this.host.height * scale;
-            w = this.host.width * scale;
+            w = hw * scale;
+            h = hh * scale;
         }
 
         let wDiff = w - (this.viewPort.xRight - this.viewPort.xLeft);

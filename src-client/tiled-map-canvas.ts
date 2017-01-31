@@ -4,7 +4,12 @@ import { CanvasRenderer } from '../src/renderer/canvas-renderer';
 import { createMapWithSpriteSheetSamples, loadSpriteSheet } from '../src/loader';
 import { UserInputType, TileMover, TileHighlighter, ViewportMover, ViewportScroller, ViewportResizer, ViewportMultiTouchScroller } from '../src/user-input/user-input';
 
-// TODO: Load a test map
+// BUG: This is not working automatically 
+// (it's loading a duplicate of the module and defeating the singleton)
+import { Platform, setupBrowser } from '@told/platform/lib/src';
+import { resolveUrlClient } from '@told/azure-functions-server/lib/src/resolve-url';
+setupBrowser();
+Platform.urlResolver = resolveUrlClient;
 
 async function load_async() {
     console.log('load_async START');
@@ -35,23 +40,46 @@ async function load_async() {
     viewPort.xRight = 1600;
     viewPort.yTop = -900;
     viewPort.yBottom = 900;
+    viewPort.clip_uLeft = 0;
+    viewPort.clip_uRight = 1;
+    viewPort.clip_vTop = 0;
+    // viewPort.clip_vBottom = 0.5;
+    // viewPort.clip_vBottom = 0.9;
+    viewPort.clip_vBottom = 1;
+
+    let toolPanelViewPort = new ViewPort();
+    toolPanelViewPort.xLeft = -1600;
+    toolPanelViewPort.xRight = 1600;
+    toolPanelViewPort.yTop = -900;
+    toolPanelViewPort.yBottom = 900;
+    toolPanelViewPort.clip_uLeft = 0;
+    toolPanelViewPort.clip_uRight = 1;
+    toolPanelViewPort.clip_vTop = 0.5;
+    toolPanelViewPort.clip_vBottom = 1;
 
     let tileHighlighter = new TileHighlighter(map);
     let tileMover = new TileMover(map, false);
     let tileCloner = new TileMover(map, true);
     let viewportMover = new ViewportMover(map, viewPort);
     let viewportScroller = new ViewportScroller(map, viewPort);
-    let viewportResizer = new ViewportResizer(map, viewPort, r);
+    let viewportResizer = new ViewportResizer(viewPort, r);
     let viewportMultiTouchScroller = new ViewportMultiTouchScroller(map, viewPort, viewportResizer);
+
+    let toolPanelViewportResizer = new ViewportResizer(toolPanelViewPort, r);
 
     // Handle resize
     r.onResize = () => {
         viewportResizer.resize();
+        toolPanelViewportResizer.resize();
     };
-    setTimeout(() => viewportResizer.resize());
+    setTimeout(() => {
+        viewportResizer.resize();
+        toolPanelViewportResizer.resize();
+    });
 
     r.onZoom = (scaleRatio) => {
         viewportResizer.resize(scaleRatio);
+        toolPanelViewportResizer.resize(scaleRatio);
     };
 
     let mode = 0;
@@ -121,15 +149,13 @@ async function load_async() {
     };
 
     let animate = () => {
+        r.clear();
         r.draw(map, viewPort);
+        // r.draw(map, toolPanelViewPort);
         requestAnimationFrame(animate);
     };
 
     requestAnimationFrame(animate);
-
-    setTimeout(() => {
-        r.draw(map, viewPort);
-    }, 250);
 
     console.log('load_async END');
 }
@@ -165,5 +191,7 @@ function save(map: Map) {
     console.log(JSON.stringify(data));
 }
 
-export function setup() { load_async().then(); }
+export function setup() {
+    load_async().then().catch(err => console.error(err));
+}
 setup();
