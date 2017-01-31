@@ -397,7 +397,11 @@ export class TileMover {
     }
 }
 
+const MAX_DURATION_START_MOVE = 250;
+const MIN_DISTANCE_START_MOVE_SQ = 0.02 * 0.02;
+
 export class ViewportMover {
+    mightDrag: boolean;
     isDragging: boolean;
     uStart: number;
     vStart: number;
@@ -413,12 +417,35 @@ export class ViewportMover {
         if (input.type === UserInputType.Move) { return; }
         // console.log('TileMover.handleInput input=', input);
 
+        if (this.mightDrag) {
+            if (input.type === UserInputType.Drag && input.duration < MAX_DURATION_START_MOVE) {
+                let distanceSq =
+                    (this.uStart - input.u) * (this.uStart - input.u)
+                    + (this.vStart - input.v) * (this.vStart - input.v);
+
+                if (distanceSq > MIN_DISTANCE_START_MOVE_SQ) {
+                    // Start Moving
+                    console.log('Start Move');
+
+                    this.isDragging = true;
+                    this.mightDrag = false;
+                }
+            }
+        }
+
         if (!this.isDragging) {
             if (input.type !== UserInputType.Start) { return; }
 
-            // Only valid if base tile
+            // Only immediate drag if base tile
             let { tilesUnder, tileItemsUnder } = getTilesAtInput(this.map, input);
-            if (tileItemsUnder.some(x => x.tile.stack.length > 1)) { return; }
+            if (tileItemsUnder.some(x => x.tile.stack.length > 1)) {
+
+                console.log('Might Move');
+                this.mightDrag = true;
+                this.uStart = input.u;
+                this.vStart = input.v;
+                return;
+            }
 
             this.isDragging = true;
             this.uStart = input.u;

@@ -71,6 +71,7 @@ export declare class TileMover {
 export declare class ViewportMover {
     private map;
     private viewPort;
+    mightDrag: boolean;
     isDragging: boolean;
     uStart: number;
     vStart: number;

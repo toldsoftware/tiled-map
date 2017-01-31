@@ -53,13 +53,17 @@
 
 - Publish to Server 
 
-##
+## 22:31-24:00
+## 0:01-0:32
 
 - Improve Performance
 	- Redraw only changed tiles
 		- What about Tiles with higher Z-Index that are drawn after the changed tile (especially overlapping it)
 			- This would cause a whole pyramid to redraw
 			- Solution: Redraw all overlapping tiles with clipping to the original area (so only items within the clip matter)
+
+##
+
 	- Draw past the screen edge a bit for re-use for scrolling & zooming
 	- Image Effects could be drawn per tile on demand
 
