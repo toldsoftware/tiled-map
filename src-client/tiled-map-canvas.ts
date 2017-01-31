@@ -9,7 +9,7 @@ import { UserInputType, TileMover, TileHighlighter, ViewportMover, ViewportScrol
 import { Platform, setupBrowser } from '@told/platform/lib/src';
 import { resolveUrlClient } from '@told/azure-functions-server/lib/src/resolve-url';
 setupBrowser();
-Platform.urlResolver = resolveUrlClient;
+// Platform.urlResolver = resolveUrlClient;
 
 async function load_async() {
     console.log('load_async START');
@@ -149,7 +149,7 @@ async function load_async() {
     };
 
     let animate = () => {
-        r.clear();
+        // r.clear();
         r.draw(map, viewPort);
         // r.draw(map, toolPanelViewPort);
         requestAnimationFrame(animate);

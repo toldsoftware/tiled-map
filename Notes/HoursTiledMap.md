@@ -47,6 +47,22 @@
 
 - Improve Highlighting
 
+# 2017-01-30
+
+## 20:30-22:30
+
+- Publish to Server 
+
+##
+
+- Improve Performance
+	- Redraw only changed tiles
+		- What about Tiles with higher Z-Index that are drawn after the changed tile (especially overlapping it)
+			- This would cause a whole pyramid to redraw
+			- Solution: Redraw all overlapping tiles with clipping to the original area (so only items within the clip matter)
+	- Draw past the screen edge a bit for re-use for scrolling & zooming
+	- Image Effects could be drawn per tile on demand
+
 ##
 
 - Add Piece Selection

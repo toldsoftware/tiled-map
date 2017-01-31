@@ -51,6 +51,11 @@
 	var canvas_renderer_1 = __webpack_require__(6);
 	var loader_1 = __webpack_require__(10);
 	var user_input_1 = __webpack_require__(8);
+	// BUG: This is not working automatically 
+	// (it's loading a duplicate of the module and defeating the singleton)
+	var src_1 = __webpack_require__(11);
+	src_1.setupBrowser();
+	// Platform.urlResolver = resolveUrlClient;
 	function load_async() {
 	    return tslib_1.__awaiter(this, void 0, void 0, function () {
 	        var map, spriteSheet, r, viewPort, toolPanelViewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, toolPanelViewportResizer, mode, animate;
@@ -167,7 +172,7 @@
 	                        }
 	                    };
 	                    animate = function () {
-	                        r.clear();
+	                        // r.clear();
 	                        r.draw(map, viewPort);
 	                        // r.draw(map, toolPanelViewPort);
 	                        requestAnimationFrame(animate);
@@ -378,8 +383,63 @@
 	}());
 	exports.Tile = Tile;
 	var TileItem = (function () {
-	    function TileItem() {
+	    function TileItem(values) {
+	        this.tile = values.tile;
+	        this.sprite = values.sprite;
+	        this.x = values.x;
+	        this.y = values.y;
+	        this.zIndex = values.zIndex;
+	        this.shouldHighlight = values.shouldHighlight;
+	        this.shouldBringToFront = values.shouldBringToFront;
 	    }
+	    Object.defineProperty(TileItem.prototype, "sprite", {
+	        get: function () { return this._sprite; },
+	        set: function (value) { this._sprite = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "x", {
+	        get: function () { return this._x; },
+	        set: function (value) { this._x = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "y", {
+	        get: function () { return this._y; },
+	        set: function (value) { this._y = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "zIndex", {
+	        get: function () { return this._zIndex; },
+	        set: function (value) { this._zIndex = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "shouldHighlight", {
+	        get: function () { return this._shouldHighlight; },
+	        set: function (value) { this._shouldHighlight = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "opacity", {
+	        get: function () { return this._opacity; },
+	        set: function (value) { this._opacity = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "shouldBringToFront", {
+	        get: function () { return this._shouldBringToFront; },
+	        set: function (value) { this._shouldBringToFront = value; this._isDirty = true; },
+	        enumerable: true,
+	        configurable: true
+	    });
+	    Object.defineProperty(TileItem.prototype, "isDirty", {
+	        get: function () { return this._isDirty; },
+	        set: function (value) { this._isDirty = value; },
+	        enumerable: true,
+	        configurable: true
+	    });
 	    return TileItem;
 	}());
 	exports.TileItem = TileItem;
@@ -788,6 +848,13 @@
 	    };
 	    CanvasRenderer.prototype.drawItems = function (sprites, viewPort) {
 	        this.lastViewPort = viewPort;
+	        var shouldDrawOnlyDirty = true;
+	        if (!this.lastViewPortValues
+	            || this.lastViewPortValues.xLeft !== viewPort.xLeft
+	            || this.lastViewPortValues.yTop !== viewPort.yTop) {
+	            shouldDrawOnlyDirty = false;
+	        }
+	        this.lastViewPortValues = tslib_1.__assign({}, viewPort);
 	        var OVER_SIZE = 4;
 	        var OVER_SIZE2 = 8;
 	        // Draw on the canvas context
@@ -798,6 +865,7 @@
 	        var hClip = cvs.height * (viewPort.clip_vBottom - viewPort.clip_vTop);
 	        var xClip = cvs.width * viewPort.clip_uLeft;
 	        var yClip = cvs.height * viewPort.clip_vTop;
+	        ctx.save();
 	        ctx.beginPath();
 	        ctx.moveTo(xClip, yClip);
 	        ctx.lineTo(xClip + wClip, yClip);
@@ -816,48 +884,97 @@
 	        // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
 	        // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
 	        // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
-	        for (var i = 0; i < sprites.length; i++) {
-	            var s = sprites[i];
-	            var x = (s.x - xLeft) * xScale;
-	            var y = (s.y - yTop) * yScale;
-	            var w = s.sprite.width * xScale;
-	            var h = s.sprite.height * yScale;
-	            var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
-	            var overSize2 = 0; // overSize * 2;
-	            // if (s.shouldHighlight) {
-	            //     ctx.globalAlpha = 0.5;
-	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
-	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
-	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
-	            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
-	            //     ctx.globalAlpha = 1;
-	            // }
-	            ctx.globalAlpha = s.opacity;
-	            if (!s.shouldHighlight) {
-	                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
+	        var clipBorder = 10;
+	        var sAreas = sprites.map(function (s) { return ({
+	            sprite: s,
+	            overlap: [s],
+	            x: (s.x - xLeft) * xScale,
+	            y: (s.y - yTop) * yScale,
+	            w: s.sprite.width * xScale,
+	            h: s.sprite.height * yScale,
+	        }); }).map(function (s) { return (tslib_1.__assign({}, s, { xMinClip_new: Math.floor(s.x - clipBorder), yMinClip_new: Math.floor(s.y - clipBorder), xMaxClip_new: Math.ceil(s.x + s.w + clipBorder), yMaxClip_new: Math.ceil(s.y + s.h + clipBorder) })); }).map(function (s) { return (tslib_1.__assign({}, s, { xMinClip: Math.min(s.xMinClip_new, s.sprite.xMinClip_last), yMinClip: Math.min(s.yMinClip_new, s.sprite.yMinClip_last), xMaxClip: Math.max(s.xMaxClip_new, s.sprite.xMaxClip_last), yMaxClip: Math.max(s.yMaxClip_new, s.sprite.yMaxClip_last) })); });
+	        var dirty = sAreas.filter(function (s) { return s.sprite.isDirty; });
+	        if (shouldDrawOnlyDirty) {
+	            for (var i = 0; i < sAreas.length; i++) {
+	                var s = sAreas[i];
+	                for (var j = 0; j < dirty.length; j++) {
+	                    var d = dirty[j];
+	                    if (s.xMinClip <= d.xMaxClip && s.xMaxClip >= d.xMinClip
+	                        && s.yMinClip <= d.yMaxClip && s.yMaxClip >= d.yMinClip) {
+	                        d.overlap.push(s.sprite);
+	                    }
+	                }
 	            }
-	            else {
-	                // if (s.shouldHighlight) {
-	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
-	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-	                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.RgbRotate2), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+	            for (var i = 0; i < dirty.length; i++) {
+	                var d = dirty[i];
+	                d.overlap.sort(function (a, b) { return a.zIndex - b.zIndex; });
 	            }
-	            ctx.globalAlpha = 1;
 	        }
-	        // Draw Highlight above others
-	        for (var i = 0; i < sprites.length; i++) {
-	            var s = sprites[i];
-	            var x = (s.x - xLeft) * xScale;
-	            var y = (s.y - yTop) * yScale;
-	            var w = s.sprite.width * xScale;
-	            var h = s.sprite.height * yScale;
-	            if (s.shouldBringToFront) {
-	                ctx.globalAlpha = 0.25 * s.opacity;
-	                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+	        else {
+	            dirty = sAreas;
+	        }
+	        // console.log('dirty.length', dirty.length);
+	        for (var i = 0; i < dirty.length; i++) {
+	            var d = dirty[i];
+	            ctx.save();
+	            ctx.beginPath();
+	            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+	            // ctx.stroke();
+	            ctx.clip();
+	            for (var j = 0; j < d.overlap.length; j++) {
+	                var s = d.overlap[j];
+	                var x = (s.x - xLeft) * xScale;
+	                var y = (s.y - yTop) * yScale;
+	                var w = s.sprite.width * xScale;
+	                var h = s.sprite.height * yScale;
+	                // ctx.rect(x, y, w, h);
+	                // ctx.fillStyle = 'rgba(0,0,0,0.1)';
+	                // ctx.fill();
+	                var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
+	                var overSize2 = 0; // overSize * 2;
+	                ctx.globalAlpha = s.opacity;
+	                if (!s.shouldHighlight) {
+	                    ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
+	                }
+	                else {
+	                    ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+	                }
 	                ctx.globalAlpha = 1;
 	            }
+	            ctx.restore();
 	        }
+	        // Draw Highlight above others
+	        for (var i = 0; i < dirty.length; i++) {
+	            var d = dirty[i];
+	            ctx.save();
+	            ctx.beginPath();
+	            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+	            ctx.clip();
+	            for (var j = 0; j < d.overlap.length; j++) {
+	                var s = d.overlap[j];
+	                var x = (s.x - xLeft) * xScale;
+	                var y = (s.y - yTop) * yScale;
+	                var w = s.sprite.width * xScale;
+	                var h = s.sprite.height * yScale;
+	                if (s.shouldBringToFront) {
+	                    ctx.globalAlpha = 0.25 * s.opacity;
+	                    ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+	                    ctx.globalAlpha = 1;
+	                }
+	            }
+	            ctx.restore();
+	        }
+	        // Reset is dirty
+	        for (var i = 0; i < dirty.length; i++) {
+	            var d = dirty[i];
+	            var s = d.sprite;
+	            s.isDirty = false;
+	            s.xMinClip_last = d.xMinClip_new;
+	            s.yMinClip_last = d.yMinClip_new;
+	            s.xMaxClip_last = d.xMaxClip_new;
+	            s.yMaxClip_last = d.yMaxClip_new;
+	        }
+	        ctx.restore();
 	    };
 	    return CanvasRenderer;
 	}(renderer_1.Renderer));
@@ -948,6 +1065,7 @@
 
 	"use strict";
 	var tslib_1 = __webpack_require__(1);
+	var tiled_map_1 = __webpack_require__(2);
 	var UserInputType;
 	(function (UserInputType) {
 	    UserInputType[UserInputType["Move"] = 0] = "Move";
@@ -1175,7 +1293,7 @@
 	                return;
 	            }
 	            if (this.shouldClone) {
-	                target = tslib_1.__assign({}, target);
+	                target = new tiled_map_1.TileItem(target);
 	                // nearestTileItem.tile.stack.push(nearestTileItem);
 	                this.map.tileItems_floating.push(target);
 	                target.tile = null;
@@ -1186,7 +1304,7 @@
 	            this.xStart = this.activeTileItem.x;
 	            this.yStart = this.activeTileItem.y;
 	            this.zStart = this.activeTileItem.zIndex;
-	            this.previewTileItem = tslib_1.__assign({}, target);
+	            this.previewTileItem = new tiled_map_1.TileItem(target);
 	            this.previewTileItem.tile = null;
 	            this.previewTileItem.opacity = 0.75;
 	            this.previewTileItem.shouldHighlight = true;
@@ -1790,7 +1908,7 @@
 	                                y: yBottomCenter - tileHeight,
 	                                zIndex: zIndex
 	                            };
-	                            tile.stack.push({
+	                            tile.stack.push(new tiled_map_1.TileItem({
 	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
@@ -1798,8 +1916,9 @@
 	                                zIndex: zIndex,
 	                                opacity: 1,
 	                                shouldHighlight: false,
-	                                shouldBringToFront: false
-	                            });
+	                                shouldBringToFront: false,
+	                                isDirty: true
+	                            }));
 	                        }
 	                    }
 	                    tiles = mapData.tiles;
@@ -1813,7 +1932,7 @@
 	                        var x = xBottomCenter - s.width * 0.5;
 	                        var y = yBottomCenter - s.height;
 	                        var tile = map.tiles[i][j];
-	                        tile.stack[k] = {
+	                        tile.stack[k] = new tiled_map_1.TileItem({
 	                            tile: tile,
 	                            sprite: s,
 	                            x: x,
@@ -1821,8 +1940,9 @@
 	                            zIndex: zIndex + 0.1,
 	                            opacity: 1,
 	                            shouldHighlight: false,
-	                            shouldBringToFront: false
-	                        };
+	                            shouldBringToFront: false,
+	                            isDirty: true
+	                        });
 	                    };
 	                    for (_i = 0, _b = mapData.tiles; _i < _b.length; _i++) {
 	                        t = _b[_i];
@@ -1877,7 +1997,7 @@
 	                                y: yBottomCenter - tileHeight,
 	                                zIndex: zIndex
 	                            };
-	                            tile.stack.push({
+	                            tile.stack.push(new tiled_map_1.TileItem({
 	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
@@ -1885,8 +2005,9 @@
 	                                zIndex: zIndex,
 	                                opacity: 1,
 	                                shouldHighlight: false,
-	                                shouldBringToFront: false
-	                            });
+	                                shouldBringToFront: false,
+	                                isDirty: true
+	                            }));
 	                        }
 	                    }
 	                    spriteCount = spriteSheet.sprites.length;
@@ -1906,7 +2027,7 @@
 	                                y: y,
 	                                zIndex: zIndex
 	                            };
-	                            tile.stack.push({
+	                            tile.stack.push(new tiled_map_1.TileItem({
 	                                tile: tile,
 	                                sprite: s,
 	                                x: x,
@@ -1914,8 +2035,9 @@
 	                                zIndex: zIndex + 0.1,
 	                                opacity: 1,
 	                                shouldHighlight: false,
-	                                shouldBringToFront: false
-	                            });
+	                                shouldBringToFront: false,
+	                                isDirty: true
+	                            }));
 	                            iSprite++;
 	                            if (iSprite >= spriteCount) {
 	                                break;

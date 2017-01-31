@@ -207,8 +207,63 @@ var Tile = (function () {
 }());
 exports.Tile = Tile;
 var TileItem = (function () {
-    function TileItem() {
+    function TileItem(values) {
+        this.tile = values.tile;
+        this.sprite = values.sprite;
+        this.x = values.x;
+        this.y = values.y;
+        this.zIndex = values.zIndex;
+        this.shouldHighlight = values.shouldHighlight;
+        this.shouldBringToFront = values.shouldBringToFront;
     }
+    Object.defineProperty(TileItem.prototype, "sprite", {
+        get: function () { return this._sprite; },
+        set: function (value) { this._sprite = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "x", {
+        get: function () { return this._x; },
+        set: function (value) { this._x = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "y", {
+        get: function () { return this._y; },
+        set: function (value) { this._y = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "zIndex", {
+        get: function () { return this._zIndex; },
+        set: function (value) { this._zIndex = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "shouldHighlight", {
+        get: function () { return this._shouldHighlight; },
+        set: function (value) { this._shouldHighlight = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "opacity", {
+        get: function () { return this._opacity; },
+        set: function (value) { this._opacity = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "shouldBringToFront", {
+        get: function () { return this._shouldBringToFront; },
+        set: function (value) { this._shouldBringToFront = value; this._isDirty = true; },
+        enumerable: true,
+        configurable: true
+    });
+    Object.defineProperty(TileItem.prototype, "isDirty", {
+        get: function () { return this._isDirty; },
+        set: function (value) { this._isDirty = value; },
+        enumerable: true,
+        configurable: true
+    });
     return TileItem;
 }());
 exports.TileItem = TileItem;
@@ -233,6 +288,7 @@ exports.SpriteSheet = SpriteSheet;
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
+var tiled_map_1 = __webpack_require__(1);
 var UserInputType;
 (function (UserInputType) {
     UserInputType[UserInputType["Move"] = 0] = "Move";
@@ -460,7 +516,7 @@ var TileMover = (function () {
                 return;
             }
             if (this.shouldClone) {
-                target = tslib_1.__assign({}, target);
+                target = new tiled_map_1.TileItem(target);
                 // nearestTileItem.tile.stack.push(nearestTileItem);
                 this.map.tileItems_floating.push(target);
                 target.tile = null;
@@ -471,7 +527,7 @@ var TileMover = (function () {
             this.xStart = this.activeTileItem.x;
             this.yStart = this.activeTileItem.y;
             this.zStart = this.activeTileItem.zIndex;
-            this.previewTileItem = tslib_1.__assign({}, target);
+            this.previewTileItem = new tiled_map_1.TileItem(target);
             this.previewTileItem.tile = null;
             this.previewTileItem.opacity = 0.75;
             this.previewTileItem.shouldHighlight = true;
@@ -748,51 +804,14 @@ exports.ViewportMultiTouchScroller = ViewportMultiTouchScroller;
 
 "use strict";
 
-function resolveUrlClient(url) {
-    if (url.indexOf('./') !== 0) {
-        return url;
+var Platform = (function () {
+    function Platform() {
     }
-    var pathname = window.location.pathname;
-    var prefix = '/';
-    if (pathname.match(/^\/api\//)) {
-        prefix = '/api/';
-    }
-    return resolveUrl_inner(url, prefix);
-}
-exports.resolveUrlClient = resolveUrlClient;
-function resolveUrl(url, pathDepthFromApiRoot) {
-    if (pathDepthFromApiRoot === void 0) { pathDepthFromApiRoot = 1; }
-    if (url.indexOf('./') !== 0) {
-        return url;
-    }
-    var depthPrefix = getPathDepthPrefix(pathDepthFromApiRoot);
-    return resolveUrl_inner(url, depthPrefix);
-}
-exports.resolveUrl = resolveUrl;
-function resolveUrl_inner(url, prefix) {
-    url = url.substr(2);
-    // If file extension, make file
-    if (url.match(/[^/]\.[^/]+$/)) {
-        return prefix + "resource/" + url + "/file";
-    }
-    else {
-        return "" + prefix + url + "?q";
-    }
-}
-function resolveAllUrls(content, pathDepthFromApiRoot) {
-    return content
-        .replace(/"(\.\/[^"]+)"/g, function (x) { return '"' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '"'; })
-        .replace(/'(\.\/[^']+)'/g, function (x) { return '\'' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '\''; });
-}
-exports.resolveAllUrls = resolveAllUrls;
-function getPathDepthPrefix(pathDepthFromApiRoot) {
-    var depthPrefix = '';
-    for (var i = 0; i < pathDepthFromApiRoot; i++) {
-        depthPrefix += '../';
-    }
-    return depthPrefix;
-}
-exports.getPathDepthPrefix = getPathDepthPrefix;
+    Platform.http = function () { return Platform.provider.http(); };
+    return Platform;
+}());
+Platform.urlResolver = function (url) { return url; };
+exports.Platform = Platform;
 
 
 /***/ }),
@@ -801,14 +820,11 @@ exports.getPathDepthPrefix = getPathDepthPrefix;
 
 "use strict";
 
-var Platform = (function () {
-    function Platform() {
-    }
-    Platform.http = function () { return Platform.provider.http(); };
-    return Platform;
-}());
-Platform.urlResolver = function (url) { return url; };
-exports.Platform = Platform;
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+__export(__webpack_require__(5));
+__export(__webpack_require__(22));
 
 
 /***/ }),
@@ -817,19 +833,6 @@ exports.Platform = Platform;
 
 "use strict";
 
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-__export(__webpack_require__(6));
-__export(__webpack_require__(22));
-
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
 var Platform = (function () {
     function Platform() {
     }
@@ -841,7 +844,7 @@ exports.Platform = Platform;
 
 
 /***/ }),
-/* 7 */
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(process, global) {var require;/*!
@@ -2004,23 +2007,22 @@ return Promise;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(23), __webpack_require__(20)))
 
 /***/ }),
-/* 8 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
 var tiled_map_1 = __webpack_require__(1);
-var kenney_xml_loader_1 = __webpack_require__(14);
-var canvas_renderer_1 = __webpack_require__(12);
-var loader_1 = __webpack_require__(10);
+var kenney_xml_loader_1 = __webpack_require__(13);
+var canvas_renderer_1 = __webpack_require__(11);
+var loader_1 = __webpack_require__(9);
 var user_input_1 = __webpack_require__(2);
 // BUG: This is not working automatically 
 // (it's loading a duplicate of the module and defeating the singleton)
-var src_1 = __webpack_require__(5);
-var resolve_url_1 = __webpack_require__(3);
+var src_1 = __webpack_require__(4);
 src_1.setupBrowser();
-src_1.Platform.urlResolver = resolve_url_1.resolveUrlClient;
+// Platform.urlResolver = resolveUrlClient;
 function load_async() {
     return tslib_1.__awaiter(this, void 0, void 0, function () {
         var map, spriteSheet, r, viewPort, toolPanelViewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, toolPanelViewportResizer, mode, animate;
@@ -2137,7 +2139,7 @@ function load_async() {
                         }
                     };
                     animate = function () {
-                        r.clear();
+                        // r.clear();
                         r.draw(map, viewPort);
                         // r.draw(map, toolPanelViewPort);
                         requestAnimationFrame(animate);
@@ -2184,25 +2186,25 @@ setup();
 
 
 /***/ }),
-/* 9 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var _1 = __webpack_require__(16);
-var resolve_url_1 = __webpack_require__(3);
+var resolve_url_1 = __webpack_require__(15);
 _1.setupBrowser();
 _1.Platform.urlResolver = resolve_url_1.resolveUrlClient;
 
 
 /***/ }),
-/* 10 */
+/* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
-var src_1 = __webpack_require__(5);
+var src_1 = __webpack_require__(4);
 var tiled_map_1 = __webpack_require__(1);
 src_1.setupBrowser();
 var http = src_1.Platform.http();
@@ -2259,7 +2261,7 @@ function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSpr
                                 y: yBottomCenter - tileHeight,
                                 zIndex: zIndex
                             };
-                            tile.stack.push({
+                            tile.stack.push(new tiled_map_1.TileItem({
                                 tile: tile,
                                 sprite: s,
                                 x: x,
@@ -2267,8 +2269,9 @@ function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSpr
                                 zIndex: zIndex,
                                 opacity: 1,
                                 shouldHighlight: false,
-                                shouldBringToFront: false
-                            });
+                                shouldBringToFront: false,
+                                isDirty: true
+                            }));
                         }
                     }
                     tiles = mapData.tiles;
@@ -2282,7 +2285,7 @@ function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSpr
                         var x = xBottomCenter - s.width * 0.5;
                         var y = yBottomCenter - s.height;
                         var tile = map.tiles[i][j];
-                        tile.stack[k] = {
+                        tile.stack[k] = new tiled_map_1.TileItem({
                             tile: tile,
                             sprite: s,
                             x: x,
@@ -2290,8 +2293,9 @@ function loadSpriteSheet(spriteSheetImageUrl, spriteSheetMetaDataUrl, defaultSpr
                             zIndex: zIndex + 0.1,
                             opacity: 1,
                             shouldHighlight: false,
-                            shouldBringToFront: false
-                        };
+                            shouldBringToFront: false,
+                            isDirty: true
+                        });
                     };
                     for (_i = 0, _b = mapData.tiles; _i < _b.length; _i++) {
                         t = _b[_i];
@@ -2346,7 +2350,7 @@ function createMapWithSpriteSheetSamples(spriteSheetImageUrl, spriteSheetMetaDat
                                 y: yBottomCenter - tileHeight,
                                 zIndex: zIndex
                             };
-                            tile.stack.push({
+                            tile.stack.push(new tiled_map_1.TileItem({
                                 tile: tile,
                                 sprite: s,
                                 x: x,
@@ -2354,8 +2358,9 @@ function createMapWithSpriteSheetSamples(spriteSheetImageUrl, spriteSheetMetaDat
                                 zIndex: zIndex,
                                 opacity: 1,
                                 shouldHighlight: false,
-                                shouldBringToFront: false
-                            });
+                                shouldBringToFront: false,
+                                isDirty: true
+                            }));
                         }
                     }
                     spriteCount = spriteSheet.sprites.length;
@@ -2375,7 +2380,7 @@ function createMapWithSpriteSheetSamples(spriteSheetImageUrl, spriteSheetMetaDat
                                 y: y,
                                 zIndex: zIndex
                             };
-                            tile.stack.push({
+                            tile.stack.push(new tiled_map_1.TileItem({
                                 tile: tile,
                                 sprite: s,
                                 x: x,
@@ -2383,8 +2388,9 @@ function createMapWithSpriteSheetSamples(spriteSheetImageUrl, spriteSheetMetaDat
                                 zIndex: zIndex + 0.1,
                                 opacity: 1,
                                 shouldHighlight: false,
-                                shouldBringToFront: false
-                            });
+                                shouldBringToFront: false,
+                                isDirty: true
+                            }));
                             iSprite++;
                             if (iSprite >= spriteCount) {
                                 break;
@@ -2424,7 +2430,7 @@ function getTilePosition(i, j, shape, tileWidth, tileHeight, iZero, jZero) {
 
 
 /***/ }),
-/* 11 */
+/* 10 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2695,15 +2701,15 @@ exports.createImageEffect_rgbRotate2 = createImageEffect_rgbRotate2;
 
 
 /***/ }),
-/* 12 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
-var renderer_1 = __webpack_require__(13);
+var renderer_1 = __webpack_require__(12);
 var user_input_1 = __webpack_require__(2);
-var canvas_image_effect_1 = __webpack_require__(11);
+var canvas_image_effect_1 = __webpack_require__(10);
 var DEBUG = true;
 var CanvasRenderer = (function (_super) {
     tslib_1.__extends(CanvasRenderer, _super);
@@ -2834,6 +2840,13 @@ var CanvasRenderer = (function (_super) {
     };
     CanvasRenderer.prototype.drawItems = function (sprites, viewPort) {
         this.lastViewPort = viewPort;
+        var shouldDrawOnlyDirty = true;
+        if (!this.lastViewPortValues
+            || this.lastViewPortValues.xLeft !== viewPort.xLeft
+            || this.lastViewPortValues.yTop !== viewPort.yTop) {
+            shouldDrawOnlyDirty = false;
+        }
+        this.lastViewPortValues = tslib_1.__assign({}, viewPort);
         var OVER_SIZE = 4;
         var OVER_SIZE2 = 8;
         // Draw on the canvas context
@@ -2844,6 +2857,7 @@ var CanvasRenderer = (function (_super) {
         var hClip = cvs.height * (viewPort.clip_vBottom - viewPort.clip_vTop);
         var xClip = cvs.width * viewPort.clip_uLeft;
         var yClip = cvs.height * viewPort.clip_vTop;
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(xClip, yClip);
         ctx.lineTo(xClip + wClip, yClip);
@@ -2862,48 +2876,97 @@ var CanvasRenderer = (function (_super) {
         // let zMaxHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out > s.zIndex ? out : s.zIndex, -100000);
         // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
         // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
-        for (var i = 0; i < sprites.length; i++) {
-            var s = sprites[i];
-            var x = (s.x - xLeft) * xScale;
-            var y = (s.y - yTop) * yScale;
-            var w = s.sprite.width * xScale;
-            var h = s.sprite.height * yScale;
-            var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
-            var overSize2 = 0; // overSize * 2;
-            // if (s.shouldHighlight) {
-            //     ctx.globalAlpha = 0.5;
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
-            //     ctx.globalAlpha = 1;
-            // }
-            ctx.globalAlpha = s.opacity;
-            if (!s.shouldHighlight) {
-                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
+        var clipBorder = 10;
+        var sAreas = sprites.map(function (s) { return ({
+            sprite: s,
+            overlap: [s],
+            x: (s.x - xLeft) * xScale,
+            y: (s.y - yTop) * yScale,
+            w: s.sprite.width * xScale,
+            h: s.sprite.height * yScale,
+        }); }).map(function (s) { return (tslib_1.__assign({}, s, { xMinClip_new: Math.floor(s.x - clipBorder), yMinClip_new: Math.floor(s.y - clipBorder), xMaxClip_new: Math.ceil(s.x + s.w + clipBorder), yMaxClip_new: Math.ceil(s.y + s.h + clipBorder) })); }).map(function (s) { return (tslib_1.__assign({}, s, { xMinClip: Math.min(s.xMinClip_new, s.sprite.xMinClip_last), yMinClip: Math.min(s.yMinClip_new, s.sprite.yMinClip_last), xMaxClip: Math.max(s.xMaxClip_new, s.sprite.xMaxClip_last), yMaxClip: Math.max(s.yMaxClip_new, s.sprite.yMaxClip_last) })); });
+        var dirty = sAreas.filter(function (s) { return s.sprite.isDirty; });
+        if (shouldDrawOnlyDirty) {
+            for (var i = 0; i < sAreas.length; i++) {
+                var s = sAreas[i];
+                for (var j = 0; j < dirty.length; j++) {
+                    var d = dirty[j];
+                    if (s.xMinClip <= d.xMaxClip && s.xMaxClip >= d.xMinClip
+                        && s.yMinClip <= d.yMaxClip && s.yMaxClip >= d.yMinClip) {
+                        d.overlap.push(s.sprite);
+                    }
+                }
             }
-            else {
-                // if (s.shouldHighlight) {
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.RgbRotate2), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+            for (var i = 0; i < dirty.length; i++) {
+                var d = dirty[i];
+                d.overlap.sort(function (a, b) { return a.zIndex - b.zIndex; });
             }
-            ctx.globalAlpha = 1;
         }
-        // Draw Highlight above others
-        for (var i = 0; i < sprites.length; i++) {
-            var s = sprites[i];
-            var x = (s.x - xLeft) * xScale;
-            var y = (s.y - yTop) * yScale;
-            var w = s.sprite.width * xScale;
-            var h = s.sprite.height * yScale;
-            if (s.shouldBringToFront) {
-                ctx.globalAlpha = 0.25 * s.opacity;
-                ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+        else {
+            dirty = sAreas;
+        }
+        // console.log('dirty.length', dirty.length);
+        for (var i = 0; i < dirty.length; i++) {
+            var d = dirty[i];
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+            // ctx.stroke();
+            ctx.clip();
+            for (var j = 0; j < d.overlap.length; j++) {
+                var s = d.overlap[j];
+                var x = (s.x - xLeft) * xScale;
+                var y = (s.y - yTop) * yScale;
+                var w = s.sprite.width * xScale;
+                var h = s.sprite.height * yScale;
+                // ctx.rect(x, y, w, h);
+                // ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                // ctx.fill();
+                var overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
+                var overSize2 = 0; // overSize * 2;
+                ctx.globalAlpha = s.opacity;
+                if (!s.shouldHighlight) {
+                    ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
+                }
+                else {
+                    ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+                }
                 ctx.globalAlpha = 1;
             }
+            ctx.restore();
         }
+        // Draw Highlight above others
+        for (var i = 0; i < dirty.length; i++) {
+            var d = dirty[i];
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+            ctx.clip();
+            for (var j = 0; j < d.overlap.length; j++) {
+                var s = d.overlap[j];
+                var x = (s.x - xLeft) * xScale;
+                var y = (s.y - yTop) * yScale;
+                var w = s.sprite.width * xScale;
+                var h = s.sprite.height * yScale;
+                if (s.shouldBringToFront) {
+                    ctx.globalAlpha = 0.25 * s.opacity;
+                    ctx.drawImage(canvas_image_effect_1.getImageEffect(s.sprite.spriteSheet, canvas_image_effect_1.ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+                    ctx.globalAlpha = 1;
+                }
+            }
+            ctx.restore();
+        }
+        // Reset is dirty
+        for (var i = 0; i < dirty.length; i++) {
+            var d = dirty[i];
+            var s = d.sprite;
+            s.isDirty = false;
+            s.xMinClip_last = d.xMinClip_new;
+            s.yMinClip_last = d.yMinClip_new;
+            s.xMaxClip_last = d.xMaxClip_new;
+            s.yMaxClip_last = d.yMaxClip_new;
+        }
+        ctx.restore();
     };
     return CanvasRenderer;
 }(renderer_1.Renderer));
@@ -2911,7 +2974,7 @@ exports.CanvasRenderer = CanvasRenderer;
 
 
 /***/ }),
-/* 13 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2990,14 +3053,14 @@ exports.Renderer = Renderer;
 
 
 /***/ }),
-/* 14 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
 var xml2json_light_1 = __webpack_require__(24);
-var sprite_sheet_loader_1 = __webpack_require__(15);
+var sprite_sheet_loader_1 = __webpack_require__(14);
 var KenneyXmlLoader = (function (_super) {
     tslib_1.__extends(KenneyXmlLoader, _super);
     function KenneyXmlLoader() {
@@ -3043,7 +3106,7 @@ exports.KenneyXmlLoader = KenneyXmlLoader;
 
 
 /***/ }),
-/* 15 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3054,6 +3117,59 @@ var SpriteSheetLoader = (function () {
     return SpriteSheetLoader;
 }());
 exports.SpriteSheetLoader = SpriteSheetLoader;
+
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+function resolveUrlClient(url) {
+    if (url.indexOf('./') !== 0) {
+        return url;
+    }
+    var pathname = window.location.pathname;
+    var prefix = '/';
+    if (pathname.match(/^\/api\//)) {
+        prefix = '/api/';
+    }
+    return resolveUrl_inner(url, prefix);
+}
+exports.resolveUrlClient = resolveUrlClient;
+function resolveUrl(url, pathDepthFromApiRoot) {
+    if (pathDepthFromApiRoot === void 0) { pathDepthFromApiRoot = 1; }
+    if (url.indexOf('./') !== 0) {
+        return url;
+    }
+    var depthPrefix = getPathDepthPrefix(pathDepthFromApiRoot);
+    return resolveUrl_inner(url, depthPrefix);
+}
+exports.resolveUrl = resolveUrl;
+function resolveUrl_inner(url, prefix) {
+    url = url.substr(2);
+    // If file extension, make file
+    if (url.match(/[^/]\.[^/]+$/)) {
+        return prefix + "resource/" + url + "/file";
+    }
+    else {
+        return "" + prefix + url + "?q";
+    }
+}
+function resolveAllUrls(content, pathDepthFromApiRoot) {
+    return content
+        .replace(/"(\.\/[^"]+)"/g, function (x) { return '"' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '"'; })
+        .replace(/'(\.\/[^']+)'/g, function (x) { return '\'' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '\''; });
+}
+exports.resolveAllUrls = resolveAllUrls;
+function getPathDepthPrefix(pathDepthFromApiRoot) {
+    var depthPrefix = '';
+    for (var i = 0; i < pathDepthFromApiRoot; i++) {
+        depthPrefix += '../';
+    }
+    return depthPrefix;
+}
+exports.getPathDepthPrefix = getPathDepthPrefix;
 
 
 /***/ }),
@@ -3280,11 +3396,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var P = __webpack_require__(4);
+var P = __webpack_require__(3);
 var browser_ajax_1 = __webpack_require__(17);
 function setupBrowser() {
     P.Platform.provider = new BrowserPlatformProvider();
-    Promise = __webpack_require__(7).Promise;
+    Promise = __webpack_require__(6).Promise;
 }
 exports.setupBrowser = setupBrowser;
 var BrowserPlatformProvider = (function () {
@@ -3353,7 +3469,7 @@ var BrowserHttpClient = (function () {
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-__export(__webpack_require__(4));
+__export(__webpack_require__(3));
 __export(__webpack_require__(18));
 
 
@@ -3596,11 +3712,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var P = __webpack_require__(6);
+var P = __webpack_require__(5);
 var browser_ajax_1 = __webpack_require__(21);
 function setupBrowser() {
     P.Platform.provider = new BrowserPlatformProvider();
-    Promise = __webpack_require__(7).Promise;
+    Promise = __webpack_require__(6).Promise;
 }
 exports.setupBrowser = setupBrowser;
 var BrowserPlatformProvider = (function () {
@@ -4044,8 +4160,8 @@ function replaceAttributes(xmlStr) {
 /* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
-__webpack_require__(9);
 __webpack_require__(8);
+__webpack_require__(7);
 
 
 /***/ })

@@ -295,7 +295,7 @@ export class TileMover {
             if (!target || target.tile.stack.length === 1) { return; }
 
             if (this.shouldClone) {
-                target = { ...target };
+                target = new TileItem(target);
                 // nearestTileItem.tile.stack.push(nearestTileItem);
                 this.map.tileItems_floating.push(target);
                 target.tile = null;
@@ -308,7 +308,7 @@ export class TileMover {
             this.yStart = this.activeTileItem.y;
             this.zStart = this.activeTileItem.zIndex;
 
-            this.previewTileItem = { ...target };
+            this.previewTileItem = new TileItem(target);
             this.previewTileItem.tile = null;
             this.previewTileItem.opacity = 0.75;
             this.previewTileItem.shouldHighlight = true;

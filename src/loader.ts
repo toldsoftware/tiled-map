@@ -1,7 +1,7 @@
 import { setupBrowser, Platform } from '@told/platform/lib/src';
 
 import { SpriteSheetLoader } from './sprite-sheet/sprite-sheet-loader';
-import { Map, MapShape, Tile, MapData, Sprite, SpriteSheet } from './tiled-map';
+import { Map, MapShape, Tile, TileItem, MapData, Sprite, SpriteSheet } from './tiled-map';
 
 setupBrowser();
 const http = Platform.http();
@@ -62,7 +62,7 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
                     zIndex
                 };
 
-                tile.stack.push({
+                tile.stack.push(new TileItem({
                     tile,
                     sprite: s,
                     x,
@@ -70,8 +70,9 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
                     zIndex,
                     opacity: 1,
                     shouldHighlight: false,
-                    shouldBringToFront: false
-                });
+                    shouldBringToFront: false,
+                    isDirty: true
+                }));
             }
         }
 
@@ -91,7 +92,7 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
             let y = yBottomCenter - s.height;
 
             let tile = map.tiles[i][j];
-            tile.stack[k] = {
+            tile.stack[k] = new TileItem({
                 tile,
                 sprite: s,
                 x,
@@ -99,8 +100,9 @@ export async function loadSpriteSheet(spriteSheetImageUrl: string, spriteSheetMe
                 zIndex: zIndex + 0.1,
                 opacity: 1,
                 shouldHighlight: false,
-                shouldBringToFront: false
-            };
+                shouldBringToFront: false,
+                isDirty: true
+            });
 
         }
 
@@ -156,7 +158,7 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 zIndex
             };
 
-            tile.stack.push({
+            tile.stack.push(new TileItem({
                 tile,
                 sprite: s,
                 x,
@@ -164,8 +166,9 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 zIndex,
                 opacity: 1,
                 shouldHighlight: false,
-                shouldBringToFront: false
-            });
+                shouldBringToFront: false,
+                isDirty: true
+            }));
         }
     }
 
@@ -192,7 +195,7 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 zIndex
             };
 
-            tile.stack.push({
+            tile.stack.push(new TileItem({
                 tile,
                 sprite: s,
                 x,
@@ -200,8 +203,9 @@ export async function createMapWithSpriteSheetSamples(spriteSheetImageUrl: strin
                 zIndex: zIndex + 0.1,
                 opacity: 1,
                 shouldHighlight: false,
-                shouldBringToFront: false
-            });
+                shouldBringToFront: false,
+                isDirty: true
+            }));
 
             iSprite++;
             if (iSprite >= spriteCount) { break; }

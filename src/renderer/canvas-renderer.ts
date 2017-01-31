@@ -15,6 +15,7 @@ export class CanvasRenderer extends Renderer {
     inputDownStart: number;
 
     lastViewPort: ViewPort;
+    lastViewPortValues: ViewPort;
 
     xCanvasLast: number;
     yCanvasLast: number;
@@ -171,6 +172,17 @@ export class CanvasRenderer extends Renderer {
     drawItems(sprites: SpriteInstance[], viewPort: ViewPort) {
         this.lastViewPort = viewPort;
 
+        let shouldDrawOnlyDirty = true;
+
+        if (!this.lastViewPortValues
+            || this.lastViewPortValues.xLeft !== viewPort.xLeft
+            || this.lastViewPortValues.yTop !== viewPort.yTop
+        ) {
+            shouldDrawOnlyDirty = false;
+        }
+
+        this.lastViewPortValues = { ...viewPort };
+
         const OVER_SIZE = 4;
         const OVER_SIZE2 = 8;
 
@@ -185,6 +197,7 @@ export class CanvasRenderer extends Renderer {
         let yClip = cvs.height * viewPort.clip_vTop;
 
 
+        ctx.save();
         ctx.beginPath();
         ctx.moveTo(xClip, yClip);
         ctx.lineTo(xClip + wClip, yClip);
@@ -207,51 +220,125 @@ export class CanvasRenderer extends Renderer {
         // let zMinHighlight = sprites.filter(s => s.shouldHighlight).reduce((out, s) => out < s.zIndex ? out : s.zIndex, 100000);
         // console.log(hasHighlight, zMaxHighlight, zMinHighlight);
 
-        for (let i = 0; i < sprites.length; i++) {
-            let s = sprites[i];
-            let x = (s.x - xLeft) * xScale;
-            let y = (s.y - yTop) * yScale;
-            let w = s.sprite.width * xScale;
-            let h = s.sprite.height * yScale;
+        let clipBorder = 10;
 
-            let overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
-            let overSize2 = 0; // overSize * 2;
+        let sAreas = sprites.map(s => ({
+            sprite: s,
+            overlap: [s] as typeof s[],
+            x: (s.x - xLeft) * xScale,
+            y: (s.y - yTop) * yScale,
+            w: s.sprite.width * xScale,
+            h: s.sprite.height * yScale,
+        })).map(s => ({
+            ...s,
+            xMinClip_new: Math.floor(s.x - clipBorder),
+            yMinClip_new: Math.floor(s.y - clipBorder),
+            xMaxClip_new: Math.ceil(s.x + s.w + clipBorder),
+            yMaxClip_new: Math.ceil(s.y + s.h + clipBorder)
+        })).map(s => ({
+            ...s,
+            xMinClip: Math.min(s.xMinClip_new, s.sprite.xMinClip_last),
+            yMinClip: Math.min(s.yMinClip_new, s.sprite.yMinClip_last),
+            xMaxClip: Math.max(s.xMaxClip_new, s.sprite.xMaxClip_last),
+            yMaxClip: Math.max(s.yMaxClip_new, s.sprite.yMaxClip_last)
+        }));
+        let dirty = sAreas.filter(s => s.sprite.isDirty);
 
-            // if (s.shouldHighlight) {
-            //     ctx.globalAlpha = 0.5;
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x + 2, y, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y + 2, w, h);
-            //     ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y - 2, w, h);
-            //     ctx.globalAlpha = 1;
-            // }
-            ctx.globalAlpha = s.opacity;
-            if (!s.shouldHighlight) {
-                ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
-            } else {
-                // if (s.shouldHighlight) {
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x, y, w, h);
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Light), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-                // ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.RgbRotate2), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - 2, y - 2, w + 4, h + 4);
-                ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+        if (shouldDrawOnlyDirty) {
+
+            for (let i = 0; i < sAreas.length; i++) {
+                let s = sAreas[i];
+                for (let j = 0; j < dirty.length; j++) {
+                    let d = dirty[j];
+
+                    if (s.xMinClip <= d.xMaxClip && s.xMaxClip >= d.xMinClip
+                        && s.yMinClip <= d.yMaxClip && s.yMaxClip >= d.yMinClip) {
+                        d.overlap.push(s.sprite);
+                    }
+                }
             }
-            ctx.globalAlpha = 1;
+
+            for (let i = 0; i < dirty.length; i++) {
+                let d = dirty[i];
+                d.overlap.sort((a, b) => a.zIndex - b.zIndex);
+            }
+        } else {
+            dirty = sAreas;
+        }
+
+        // console.log('dirty.length', dirty.length);
+
+        for (let i = 0; i < dirty.length; i++) {
+            let d = dirty[i];
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+            // ctx.stroke();
+            ctx.clip();
+
+            for (let j = 0; j < d.overlap.length; j++) {
+                let s = d.overlap[j];
+                let x = (s.x - xLeft) * xScale;
+                let y = (s.y - yTop) * yScale;
+                let w = s.sprite.width * xScale;
+                let h = s.sprite.height * yScale;
+
+                // ctx.rect(x, y, w, h);
+                // ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                // ctx.fill();
+
+                let overSize = 0; // s.zIndex > zMinHighlight ? -16 : 0;
+                let overSize2 = 0; // overSize * 2;
+
+                ctx.globalAlpha = s.opacity;
+                if (!s.shouldHighlight) {
+                    ctx.drawImage(s.sprite.spriteSheet.image, s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - overSize, y - overSize, w + overSize2, h + overSize2);
+                } else {
+                    ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+                }
+                ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
         }
 
         // Draw Highlight above others
-        for (let i = 0; i < sprites.length; i++) {
-            let s = sprites[i];
-            let x = (s.x - xLeft) * xScale;
-            let y = (s.y - yTop) * yScale;
-            let w = s.sprite.width * xScale;
-            let h = s.sprite.height * yScale;
+        for (let i = 0; i < dirty.length; i++) {
+            let d = dirty[i];
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(d.xMinClip, d.yMinClip, d.xMaxClip - d.xMinClip, d.yMaxClip - d.yMinClip);
+            ctx.clip();
 
-            if (s.shouldBringToFront) {
-                ctx.globalAlpha = 0.25 * s.opacity;
-                ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
-                ctx.globalAlpha = 1;
+            for (let j = 0; j < d.overlap.length; j++) {
+                let s = d.overlap[j];
+                let x = (s.x - xLeft) * xScale;
+                let y = (s.y - yTop) * yScale;
+                let w = s.sprite.width * xScale;
+                let h = s.sprite.height * yScale;
+
+                if (s.shouldBringToFront) {
+                    ctx.globalAlpha = 0.25 * s.opacity;
+                    ctx.drawImage(getImageEffect(s.sprite.spriteSheet, ImageEffectKind.Dark), s.sprite.xSheet, s.sprite.ySheet, s.sprite.width, s.sprite.height, x - OVER_SIZE, y - OVER_SIZE, w + OVER_SIZE2, h + OVER_SIZE2);
+                    ctx.globalAlpha = 1;
+                }
             }
+
+            ctx.restore();
         }
+
+        // Reset is dirty
+        for (let i = 0; i < dirty.length; i++) {
+            let d = dirty[i];
+            let s = d.sprite;
+            s.isDirty = false;
+            s.xMinClip_last = d.xMinClip_new;
+            s.yMinClip_last = d.yMinClip_new;
+            s.xMaxClip_last = d.xMaxClip_new;
+            s.yMaxClip_last = d.yMaxClip_new;
+        }
+
+        ctx.restore();
     }
 
     // drawLine(x1: number, y1: number, x2: number, y2: number, viewPort: ViewPort) {

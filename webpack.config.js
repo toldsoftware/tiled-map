@@ -3,8 +3,8 @@ var  BrowserSyncPlugin  =  require('browser-sync-webpack-plugin'); 
 
 module.exports = {
     entry: {
-        // './resources/tiled-map-canvas.js': './src-client/tiled-map-canvas.ts',
-        './deployment/resources/tiled-map-canvas.js': './deployment/resources/tiled-map-canvas.source.js',
+        './resources/tiled-map-canvas.js': './src-client/tiled-map-canvas.ts',
+        // './deployment/resources/tiled-map-canvas.js': './deployment/resources/tiled-map-canvas.source.js',
     },
     output: {
         path: './',

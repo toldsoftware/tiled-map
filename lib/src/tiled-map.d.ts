@@ -32,6 +32,18 @@ export declare class Tile {
 }
 export declare class TileItem implements SpriteInstance {
     tile: Tile;
+    _sprite: Sprite;
+    _x: number;
+    _y: number;
+    _zIndex: number;
+    _shouldHighlight: boolean;
+    _opacity: number;
+    _shouldBringToFront: boolean;
+    _isDirty: boolean;
+    xMinClip_last?: number;
+    yMinClip_last?: number;
+    xMaxClip_last?: number;
+    yMaxClip_last?: number;
     sprite: Sprite;
     x: number;
     y: number;
@@ -39,6 +51,10 @@ export declare class TileItem implements SpriteInstance {
     shouldHighlight: boolean;
     opacity: number;
     shouldBringToFront: boolean;
+    isDirty: boolean;
+    constructor(values: SpriteInstance & {
+        tile: Tile;
+    });
 }
 export interface SpriteInstance {
     sprite: Sprite;
@@ -48,6 +64,11 @@ export interface SpriteInstance {
     shouldHighlight: boolean;
     opacity: number;
     shouldBringToFront: boolean;
+    isDirty: boolean;
+    xMinClip_last?: number;
+    yMinClip_last?: number;
+    xMaxClip_last?: number;
+    yMaxClip_last?: number;
 }
 export declare class Sprite {
     spriteSheet: SpriteSheet;

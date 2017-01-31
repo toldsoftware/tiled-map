@@ -8,6 +8,7 @@ export declare class CanvasRenderer extends Renderer {
     isInputDown: boolean;
     inputDownStart: number;
     lastViewPort: ViewPort;
+    lastViewPortValues: ViewPort;
     xCanvasLast: number;
     yCanvasLast: number;
     isMultipleLast: boolean;
