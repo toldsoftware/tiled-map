@@ -804,14 +804,51 @@ exports.ViewportMultiTouchScroller = ViewportMultiTouchScroller;
 
 "use strict";
 
-var Platform = (function () {
-    function Platform() {
+function resolveUrlClient(url) {
+    if (url.indexOf('./') !== 0) {
+        return url;
     }
-    Platform.http = function () { return Platform.provider.http(); };
-    return Platform;
-}());
-Platform.urlResolver = function (url) { return url; };
-exports.Platform = Platform;
+    var pathname = window.location.pathname;
+    var prefix = '/';
+    if (pathname.match(/^\/api\//)) {
+        prefix = '/api/';
+    }
+    return resolveUrl_inner(url, prefix);
+}
+exports.resolveUrlClient = resolveUrlClient;
+function resolveUrl(url, pathDepthFromApiRoot) {
+    if (pathDepthFromApiRoot === void 0) { pathDepthFromApiRoot = 1; }
+    if (url.indexOf('./') !== 0) {
+        return url;
+    }
+    var depthPrefix = getPathDepthPrefix(pathDepthFromApiRoot);
+    return resolveUrl_inner(url, depthPrefix);
+}
+exports.resolveUrl = resolveUrl;
+function resolveUrl_inner(url, prefix) {
+    url = url.substr(2);
+    // If file extension, make file
+    if (url.match(/[^/]\.[^/]+$/)) {
+        return prefix + "resource/" + url + "/file";
+    }
+    else {
+        return "" + prefix + url + "?q";
+    }
+}
+function resolveAllUrls(content, pathDepthFromApiRoot) {
+    return content
+        .replace(/"(\.\/[^"]+)"/g, function (x) { return '"' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '"'; })
+        .replace(/'(\.\/[^']+)'/g, function (x) { return '\'' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '\''; });
+}
+exports.resolveAllUrls = resolveAllUrls;
+function getPathDepthPrefix(pathDepthFromApiRoot) {
+    var depthPrefix = '';
+    for (var i = 0; i < pathDepthFromApiRoot; i++) {
+        depthPrefix += '../';
+    }
+    return depthPrefix;
+}
+exports.getPathDepthPrefix = getPathDepthPrefix;
 
 
 /***/ }),
@@ -820,15 +857,31 @@ exports.Platform = Platform;
 
 "use strict";
 
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-__export(__webpack_require__(5));
-__export(__webpack_require__(22));
+var Platform = (function () {
+    function Platform() {
+    }
+    Platform.http = function () { return Platform.provider.http(); };
+    return Platform;
+}());
+Platform.urlResolver = function (url) { return url; };
+exports.Platform = Platform;
 
 
 /***/ }),
 /* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+function __export(m) {
+    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
+}
+__export(__webpack_require__(6));
+__export(__webpack_require__(22));
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -844,7 +897,7 @@ exports.Platform = Platform;
 
 
 /***/ }),
-/* 6 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(process, global) {var require;/*!
@@ -2007,22 +2060,24 @@ return Promise;
 /* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(23), __webpack_require__(20)))
 
 /***/ }),
-/* 7 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
 var tiled_map_1 = __webpack_require__(1);
-var kenney_xml_loader_1 = __webpack_require__(13);
-var canvas_renderer_1 = __webpack_require__(11);
-var loader_1 = __webpack_require__(9);
+var kenney_xml_loader_1 = __webpack_require__(14);
+var canvas_renderer_1 = __webpack_require__(12);
+var loader_1 = __webpack_require__(10);
 var user_input_1 = __webpack_require__(2);
 // BUG: This is not working automatically 
 // (it's loading a duplicate of the module and defeating the singleton)
-var src_1 = __webpack_require__(4);
+var src_1 = __webpack_require__(5);
+var resolve_url_1 = __webpack_require__(3);
 src_1.setupBrowser();
-// Platform.urlResolver = resolveUrlClient;
+// Manually remove for localhost webpack
+src_1.Platform.urlResolver = resolve_url_1.resolveUrlClient;
 function load_async() {
     return tslib_1.__awaiter(this, void 0, void 0, function () {
         var map, spriteSheet, r, viewPort, toolPanelViewPort, tileHighlighter, tileMover, tileCloner, viewportMover, viewportScroller, viewportResizer, viewportMultiTouchScroller, toolPanelViewportResizer, mode, animate;
@@ -2186,25 +2241,25 @@ setup();
 
 
 /***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-var _1 = __webpack_require__(16);
-var resolve_url_1 = __webpack_require__(15);
-_1.setupBrowser();
-_1.Platform.urlResolver = resolve_url_1.resolveUrlClient;
-
-
-/***/ }),
 /* 9 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
+var _1 = __webpack_require__(16);
+var resolve_url_1 = __webpack_require__(3);
+_1.setupBrowser();
+_1.Platform.urlResolver = resolve_url_1.resolveUrlClient;
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
 var tslib_1 = __webpack_require__(0);
-var src_1 = __webpack_require__(4);
+var src_1 = __webpack_require__(5);
 var tiled_map_1 = __webpack_require__(1);
 src_1.setupBrowser();
 var http = src_1.Platform.http();
@@ -2430,7 +2485,7 @@ function getTilePosition(i, j, shape, tileWidth, tileHeight, iZero, jZero) {
 
 
 /***/ }),
-/* 10 */
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -2701,15 +2756,15 @@ exports.createImageEffect_rgbRotate2 = createImageEffect_rgbRotate2;
 
 
 /***/ }),
-/* 11 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
-var renderer_1 = __webpack_require__(12);
+var renderer_1 = __webpack_require__(13);
 var user_input_1 = __webpack_require__(2);
-var canvas_image_effect_1 = __webpack_require__(10);
+var canvas_image_effect_1 = __webpack_require__(11);
 var DEBUG = true;
 var CanvasRenderer = (function (_super) {
     tslib_1.__extends(CanvasRenderer, _super);
@@ -2980,7 +3035,7 @@ exports.CanvasRenderer = CanvasRenderer;
 
 
 /***/ }),
-/* 12 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3059,14 +3114,14 @@ exports.Renderer = Renderer;
 
 
 /***/ }),
-/* 13 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 var tslib_1 = __webpack_require__(0);
 var xml2json_light_1 = __webpack_require__(24);
-var sprite_sheet_loader_1 = __webpack_require__(14);
+var sprite_sheet_loader_1 = __webpack_require__(15);
 var KenneyXmlLoader = (function (_super) {
     tslib_1.__extends(KenneyXmlLoader, _super);
     function KenneyXmlLoader() {
@@ -3112,7 +3167,7 @@ exports.KenneyXmlLoader = KenneyXmlLoader;
 
 
 /***/ }),
-/* 14 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -3123,59 +3178,6 @@ var SpriteSheetLoader = (function () {
     return SpriteSheetLoader;
 }());
 exports.SpriteSheetLoader = SpriteSheetLoader;
-
-
-/***/ }),
-/* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-function resolveUrlClient(url) {
-    if (url.indexOf('./') !== 0) {
-        return url;
-    }
-    var pathname = window.location.pathname;
-    var prefix = '/';
-    if (pathname.match(/^\/api\//)) {
-        prefix = '/api/';
-    }
-    return resolveUrl_inner(url, prefix);
-}
-exports.resolveUrlClient = resolveUrlClient;
-function resolveUrl(url, pathDepthFromApiRoot) {
-    if (pathDepthFromApiRoot === void 0) { pathDepthFromApiRoot = 1; }
-    if (url.indexOf('./') !== 0) {
-        return url;
-    }
-    var depthPrefix = getPathDepthPrefix(pathDepthFromApiRoot);
-    return resolveUrl_inner(url, depthPrefix);
-}
-exports.resolveUrl = resolveUrl;
-function resolveUrl_inner(url, prefix) {
-    url = url.substr(2);
-    // If file extension, make file
-    if (url.match(/[^/]\.[^/]+$/)) {
-        return prefix + "resource/" + url + "/file";
-    }
-    else {
-        return "" + prefix + url + "?q";
-    }
-}
-function resolveAllUrls(content, pathDepthFromApiRoot) {
-    return content
-        .replace(/"(\.\/[^"]+)"/g, function (x) { return '"' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '"'; })
-        .replace(/'(\.\/[^']+)'/g, function (x) { return '\'' + resolveUrl(x.substr(1, x.length - 2), pathDepthFromApiRoot) + '\''; });
-}
-exports.resolveAllUrls = resolveAllUrls;
-function getPathDepthPrefix(pathDepthFromApiRoot) {
-    var depthPrefix = '';
-    for (var i = 0; i < pathDepthFromApiRoot; i++) {
-        depthPrefix += '../';
-    }
-    return depthPrefix;
-}
-exports.getPathDepthPrefix = getPathDepthPrefix;
 
 
 /***/ }),
@@ -3402,11 +3404,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var P = __webpack_require__(3);
+var P = __webpack_require__(4);
 var browser_ajax_1 = __webpack_require__(17);
 function setupBrowser() {
     P.Platform.provider = new BrowserPlatformProvider();
-    Promise = __webpack_require__(6).Promise;
+    Promise = __webpack_require__(7).Promise;
 }
 exports.setupBrowser = setupBrowser;
 var BrowserPlatformProvider = (function () {
@@ -3475,7 +3477,7 @@ var BrowserHttpClient = (function () {
 function __export(m) {
     for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
 }
-__export(__webpack_require__(3));
+__export(__webpack_require__(4));
 __export(__webpack_require__(18));
 
 
@@ -3718,11 +3720,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-var P = __webpack_require__(5);
+var P = __webpack_require__(6);
 var browser_ajax_1 = __webpack_require__(21);
 function setupBrowser() {
     P.Platform.provider = new BrowserPlatformProvider();
-    Promise = __webpack_require__(6).Promise;
+    Promise = __webpack_require__(7).Promise;
 }
 exports.setupBrowser = setupBrowser;
 var BrowserPlatformProvider = (function () {
@@ -4166,8 +4168,8 @@ function replaceAttributes(xmlStr) {
 /* 26 */
 /***/ (function(module, exports, __webpack_require__) {
 
+__webpack_require__(9);
 __webpack_require__(8);
-__webpack_require__(7);
 
 
 /***/ })
